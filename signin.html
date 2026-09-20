@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign In — Brew &amp; Blue</title>
+<meta name="description" content="Sign in to your Brew & Blue account to order faster and collect loyalty points.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314507E'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/></svg>">
+</head>
+<body data-page="signin">
+
+<header id="site-header"></header>
+
+<main>
+  <div class="auth-split">
+
+    <!-- ============ SIDE PANEL ============ -->
+    <aside class="auth-side">
+      <span class="eyebrow eyebrow--light">Welcome back</span>
+      <h2>Your usual, waiting for you.</h2>
+      <p>Sign in to reorder in two taps, track deliveries live and keep collecting points on every cup.</p>
+      <ul>
+        <li><span data-icon="refresh"></span><span><b style="color:#fff">Reorder instantly</b><br>Your last ten orders are one tap away.</span></li>
+        <li><span data-icon="gift"></span><span><b style="color:#fff">Points on every order</b><br>100 points becomes $5 off, applied automatically.</span></li>
+        <li><span data-icon="truck"></span><span><b style="color:#fff">Live order tracking</b><br>Watch it go from the bar to your door.</span></li>
+      </ul>
+      <div class="auth-quote">
+        “I have tried every flat white in the district. This one wins on consistency.”
+        <br><b style="font-style:normal;color:var(--yellow-400)">— Daniel O., regular since 2022</b>
+      </div>
+    </aside>
+
+    <!-- ============ FORM ============ -->
+    <section class="auth-main">
+      <div class="auth-card">
+        <h1>Sign in</h1>
+        <p class="muted" style="margin-bottom:1.6rem">New here? <a href="signup.html"><b>Create an account</b></a></p>
+
+        <div class="demo-box">
+          <b>Demo accounts</b> — this is a student project, so two are ready for you:<br>
+          Customer: <code>customer@demo.com</code> / <code>demo123</code><br>
+          Admin: <code>admin@brewandblue.coffee</code> / <code>admin123</code>
+        </div>
+
+        <div id="formAlert"></div>
+
+        <form id="signinForm" novalidate>
+          <div class="field">
+            <label for="email">Email address</label>
+            <input type="email" id="email" placeholder="you@example.com" autocomplete="email" required>
+            <span class="err-msg">Enter a valid email address.</span>
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="input-group">
+              <input type="password" id="password" placeholder="Your password" autocomplete="current-password" required>
+              <button type="button" class="toggle-pass" id="togglePass" aria-label="Show password"></button>
+            </div>
+            <span class="err-msg">Please enter your password.</span>
+          </div>
+
+          <div class="between" style="margin-bottom:1.4rem">
+            <label class="check"><input type="checkbox" id="remember" checked><span>Keep me signed in</span></label>
+            <a href="#" class="small" id="forgot">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">Sign in</button>
+        </form>
+
+        <div class="divider">or continue with</div>
+        <div class="social-row">
+          <button class="btn btn-light" data-social="Google">Google</button>
+          <button class="btn btn-light" data-social="Facebook">Facebook</button>
+        </div>
+
+        <p class="small muted center" style="margin-top:1.6rem">
+          By signing in you agree to our terms of service and privacy policy.</p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* already signed in? go straight through */
+  if (Auth.current()) {
+    location.replace(param('next') || 'index.html');
+    return;
+  }
+
+  const next = param('next') || 'index.html';
+
+  /* password visibility */
+  const pass = $('#password'), toggle = $('#togglePass');
+  toggle.innerHTML = icon('eye');
+  toggle.addEventListener('click', () => {
+    const show = pass.type === 'password';
+    pass.type = show ? 'text' : 'password';
+    toggle.innerHTML = icon(show ? 'eyeOff' : 'eye');
+    toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  });
+
+  const alertBox = $('#formAlert');
+  const showAlert = (msg, kind) => {
+    alertBox.innerHTML = '<div class="alert alert-' + kind + '">' +
+      icon(kind === 'err' ? 'alert' : 'checkCircle') + '<span>' + esc(msg) + '</span></div>';
+  };
+
+  $('#signinForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    alertBox.innerHTML = '';
+
+    const email = $('#email').value.trim();
+    const pw = pass.value;
+
+    const emailBad = !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+    const pwBad = pw.length < 1;
+    $('#email').closest('.field').classList.toggle('err', emailBad);
+    $('#password').closest('.field').classList.toggle('err', pwBad);
+    if (emailBad || pwBad) return;
+
+    const btn = $('#submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = icon('refresh') + ' Signing in…';
+
+    setTimeout(() => {
+      const res = Auth.signin(email, pw);
+      if (!res.ok) {
+        showAlert(res.error, 'err');
+        btn.disabled = false;
+        btn.textContent = 'Sign in';
+        return;
+      }
+      showAlert('Welcome back, ' + res.user.name.split(' ')[0] + '!', 'ok');
+      toast('Signed in as ' + res.user.name, 'ok');
+      setTimeout(() => {
+        location.href = res.user.role === 'admin' && next === 'index.html' ? 'admin.html' : next;
+      }, 550);
+    }, 500);
+  });
+
+  $('#forgot').addEventListener('click', (e) => {
+    e.preventDefault();
+    toast('Password reset needs a mail server — out of scope for this demo.', 'err');
+  });
+
+  $$('[data-social]').forEach(b => b.addEventListener('click', () =>
+    toast(b.dataset.social + ' sign-in would need a real OAuth app.', 'err')));
+});
+</script>
+</body>
+</html>

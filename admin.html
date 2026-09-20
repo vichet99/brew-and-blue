@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Dashboard — Brew &amp; Blue</title>
+<meta name="description" content="Manage orders, products, customers and feedback.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230A2540'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/></svg>">
+<style>body{display:block;}</style>
+</head>
+<body data-page="admin">
+
+<div class="admin-shell">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="admin-side" id="adminSide">
+    <a href="index.html" class="brand">
+      <span class="brand-mark" id="sideMark"></span><span>Brew <i>&amp;</i> Blue</span></a>
+    <p class="grp">Overview</p>
+    <nav id="adminNav"></nav>
+    <p class="grp">Shortcuts</p>
+    <nav>
+      <a href="index.html" target="_blank" id="viewSite"></a>
+      <a href="#" id="sideSignout"></a>
+    </nav>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="admin-main">
+    <header class="admin-top">
+      <button class="icon-btn admin-burger" id="adminBurger" aria-label="Menu"></button>
+      <h1 id="viewTitle">Dashboard</h1>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:.8rem">
+        <span class="badge badge-info hide-sm" id="todayPill"></span>
+        <span class="avatar" id="adminAvatar"></span>
+      </div>
+    </header>
+
+    <div class="admin-body">
+      <div class="admin-view active" id="view-overview"></div>
+      <div class="admin-view" id="view-orders"></div>
+      <div class="admin-view" id="view-products"></div>
+      <div class="admin-view" id="view-customers"></div>
+      <div class="admin-view" id="view-feedback"></div>
+      <div class="admin-view" id="view-settings"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-bg" data-close></div>
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const admin = Auth.require(true);
+  if (!admin) return;
+
+  let view = location.hash.replace('#', '') || 'overview';
+  const VIEWS = [
+    { id: 'overview',  label: 'Dashboard', icon: 'chart' },
+    { id: 'orders',    label: 'Orders',    icon: 'box' },
+    { id: 'products',  label: 'Products',  icon: 'coffee' },
+    { id: 'customers', label: 'Customers', icon: 'users' },
+    { id: 'feedback',  label: 'Feedback',  icon: 'message' },
+    { id: 'settings',  label: 'Settings',  icon: 'settings' }
+  ];
+
+  /* ---------- shell chrome ---------- */
+  $('#sideMark').innerHTML = icon('coffee');
+  $('#adminAvatar').textContent = initials(admin.name);
+  $('#adminBurger').innerHTML = icon('menu');
+  $('#viewSite').innerHTML = icon('home') + 'View the shop';
+  $('#sideSignout').innerHTML = icon('logout') + 'Sign out';
+  $('#adminBurger').addEventListener('click', () => $('#adminSide').classList.toggle('open'));
+  $('#sideSignout').addEventListener('click', (e) => {
+    e.preventDefault();
+    Auth.signout();
+    location.href = 'index.html';
+  });
+
+  function renderNav() {
+    const openFb = Feedback.openCount();
+    const pending = Orders.all().filter(o => o.status === 'pending').length;
+    $('#adminNav').innerHTML = VIEWS.map(v =>
+      '<a href="#' + v.id + '" class="' + (view === v.id ? 'active' : '') + '" data-view="' + v.id + '">' +
+      icon(v.icon) + v.label +
+      (v.id === 'orders' && pending ? '<span class="pill">' + pending + '</span>' : '') +
+      (v.id === 'feedback' && openFb ? '<span class="pill">' + openFb + '</span>' : '') +
+      '</a>').join('');
+    $$('#adminNav [data-view]').forEach(a => a.addEventListener('click', () => {
+      view = a.dataset.view;
+      $('#adminSide').classList.remove('open');
+      render();
+    }));
+  }
+
+  /* ============================================================
+     CHARTS (hand-drawn SVG so there is no charting library)
+     ============================================================ */
+  function lineChart(days) {
+    const W = 720, H = 250, P = { l: 48, r: 18, t: 18, b: 34 };
+    const max = Math.max(10, ...days.map(d => d.value)) * 1.2;
+    const x = i => P.l + i * ((W - P.l - P.r) / Math.max(1, days.length - 1));
+    const y = v => H - P.b - (v / max) * (H - P.t - P.b);
+
+    const pts = days.map((d, i) => x(i) + ',' + y(d.value));
+    const area = 'M' + x(0) + ',' + (H - P.b) + ' L' + pts.join(' L') + ' L' + x(days.length - 1) + ',' + (H - P.b) + ' Z';
+
+    let grid = '';
+    for (let g = 0; g <= 4; g++) {
+      const v = max / 4 * g, yy = y(v);
+      grid += '<line x1="' + P.l + '" x2="' + (W - P.r) + '" y1="' + yy + '" y2="' + yy + '" stroke="#E7DACB" stroke-dasharray="3 4"/>' +
+              '<text x="' + (P.l - 10) + '" y="' + (yy + 4) + '" text-anchor="end" font-size="11" fill="#8B7A6E">$' + Math.round(v) + '</text>';
+    }
+
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto" role="img" aria-label="Revenue over the last 7 days">' +
+      '<defs><linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" stop-color="#1E77B8" stop-opacity=".35"/>' +
+        '<stop offset="100%" stop-color="#1E77B8" stop-opacity="0"/></linearGradient></defs>' +
+      grid +
+      '<path d="' + area + '" fill="url(#gArea)"/>' +
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#14507E" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' +
+      days.map((d, i) =>
+        '<g><circle cx="' + x(i) + '" cy="' + y(d.value) + '" r="5" fill="#fff" stroke="#14507E" stroke-width="3"/>' +
+        '<title>' + d.label + ': ' + money(d.value) + ' from ' + d.orders + ' orders</title></g>').join('') +
+      days.map((d, i) =>
+        '<text x="' + x(i) + '" y="' + (H - 12) + '" text-anchor="middle" font-size="11.5" fill="#8B7A6E">' + d.label + '</text>').join('') +
+      '</svg>';
+  }
+
+  function donut(entries) {
+    const total = entries.reduce((s, e) => s + e.value, 0) || 1;
+    const R = 52, C = 2 * Math.PI * R;
+    let acc = 0;
+    const rings = entries.map(e => {
+      const frac = e.value / total;
+      const seg = '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="' + e.color + '" stroke-width="22"' +
+        ' stroke-dasharray="' + (frac * C) + ' ' + C + '" stroke-dashoffset="' + (-acc * C) + '"' +
+        ' transform="rotate(-90 70 70)"><title>' + e.label + ': ' + money(e.value) + '</title></circle>';
+      acc += frac;
+      return seg;
+    }).join('');
+
+    return '<div style="display:flex;gap:1.4rem;align-items:center;flex-wrap:wrap">' +
+      '<svg viewBox="0 0 140 140" style="width:140px;height:140px;flex:none" role="img" aria-label="Revenue by category">' +
+        '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="#F0E2D2" stroke-width="22"/>' + rings +
+        '<text x="70" y="66" text-anchor="middle" font-size="13" fill="#8B7A6E">Total</text>' +
+        '<text x="70" y="86" text-anchor="middle" font-size="17" font-weight="700" fill="#241A15">' + money(total) + '</text>' +
+      '</svg>' +
+      '<div style="flex:1;min-width:150px">' + entries.map(e =>
+        '<div class="between" style="padding:.35rem 0;font-size:.86rem">' +
+        '<span><i style="width:11px;height:11px;border-radius:3px;display:inline-block;background:' + e.color + ';margin-right:.5rem"></i>' + e.label + '</span>' +
+        '<b>' + Math.round(e.value / total * 100) + '%</b></div>').join('') +
+      '</div></div>';
+  }
+
+  /* ============================================================
+     VIEW: OVERVIEW
+     ============================================================ */
+  function renderOverview() {
+    const s = Orders.stats();
+    const yesterday = s.days[s.days.length - 2] || { value: 0 };
+    const today = s.days[s.days.length - 1] || { value: 0 };
+    const delta = yesterday.value ? ((today.value - yesterday.value) / yesterday.value * 100) : 0;
+
+    const CAT_COLORS = { hot: '#6B4226', cold: '#14507E', tea: '#3F7D53', pastry: '#F5B301', beans: '#9C6B45' };
+    const catEntries = CATEGORIES
+      .map(c => ({ label: c.name, value: s.byCat[c.id] || 0, color: CAT_COLORS[c.id] }))
+      .filter(e => e.value > 0);
+
+    const recent = Orders.all().slice(0, 6);
+    const maxQty = Math.max(1, ...s.top.map(t => t.qty));
+
+    $('#view-overview').innerHTML = `
+    <div class="kpis">
+      <div class="kpi">
+        <div class="ico ico-blue">${icon('dollar')}</div>
+        <div class="lab">Revenue (14 days)</div>
+        <div class="val">${money(s.revenue)}</div>
+        <span class="delta ${delta >= 0 ? 'up' : 'down'}">${icon(delta >= 0 ? 'arrowUp' : 'arrowDown')}
+          ${Math.abs(delta).toFixed(1)}% vs yesterday</span>
+      </div>
+      <div class="kpi">
+        <div class="ico ico-brown">${icon('box')}</div>
+        <div class="lab">Orders</div>
+        <div class="val">${s.orders}</div>
+        <span class="delta up">${s.todayOrders} placed today</span>
+      </div>
+      <div class="kpi">
+        <div class="ico ico-yellow">${icon('chart')}</div>
+        <div class="lab">Average order</div>
+        <div class="val">${money(s.avg)}</div>
+        <span class="delta up">${money(s.todayRevenue)} today</span>
+      </div>
+      <div class="kpi">
+        <div class="ico ico-blue">${icon('users')}</div>
+        <div class="lab">Customers</div>
+        <div class="val">${s.customers}</div>
+        <span class="delta ${s.pending ? 'down' : 'up'}">${s.pending} order(s) awaiting action</span>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="panel">
+        <div class="panel-head"><h3>Revenue — last 7 days</h3>
+          <span class="badge badge-info">Hover a point for detail</span></div>
+        <div class="panel-body">${lineChart(s.days)}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Revenue by category</h3></div>
+        <div class="panel-body">${catEntries.length ? donut(catEntries) : '<p class="muted small">No sales yet.</p>'}</div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="panel">
+        <div class="panel-head"><h3>Latest orders</h3>
+          <a href="#orders" class="btn btn-light btn-sm" data-goto="orders">See all</a></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th class="num">Total</th></tr></thead>
+            <tbody>${recent.map(o => `<tr>
+              <td><b>${o.id}</b><br><small class="muted">${timeAgo(o.createdAt)}</small></td>
+              <td>${esc(o.userName)}</td>
+              <td><span class="badge ${STATUS_META[o.status].cls}">${STATUS_META[o.status].label}</span></td>
+              <td class="num"><b>${money(o.total)}</b></td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Top sellers</h3></div>
+        <div class="panel-body">
+          <div class="bar-list">
+            ${s.top.length ? s.top.map(t => `
+              <div class="row">
+                <span>${esc(t.product.name)}</span><b>${t.qty} sold</b>
+                <span class="track-bg"><i style="width:${t.qty / maxQty * 100}%;background:${t.product.tint}"></i></span>
+              </div>`).join('') : '<p class="muted small">No sales yet.</p>'}
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+    $$('[data-goto]').forEach(b => b.addEventListener('click', (e) => {
+      e.preventDefault(); view = b.dataset.goto; render();
+    }));
+  }
+
+  /* ============================================================
+     VIEW: ORDERS
+     ============================================================ */
+  let orderFilter = 'all', orderQuery = '';
+
+  function renderOrders() {
+    let list = Orders.all();
+    if (orderFilter !== 'all') list = list.filter(o => o.status === orderFilter);
+    if (orderQuery) {
+      const q = orderQuery.toLowerCase();
+      list = list.filter(o => o.id.toLowerCase().includes(q) ||
+        (o.userName || '').toLowerCase().includes(q) ||
+        (o.userEmail || '').toLowerCase().includes(q));
+    }
+
+    $('#view-orders').innerHTML = `
+    <div class="toolbar-admin">
+      <div class="search-box">${icon('search')}
+        <input class="input" id="oq" placeholder="Search order, name or email…" value="${esc(orderQuery)}"></div>
+      <select class="sel" id="ofilter">
+        ${['all', ...Object.keys(STATUS_META)].map(k =>
+          '<option value="' + k + '" ' + (orderFilter === k ? 'selected' : '') + '>' +
+          (k === 'all' ? 'All statuses' : STATUS_META[k].label) + '</option>').join('')}
+      </select>
+      <button class="btn btn-light btn-sm" id="exportCsv">${icon('download')} Export CSV</button>
+      <span class="small muted" style="margin-left:auto">${list.length} order(s)</span>
+    </div>
+
+    <div class="panel">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr>
+            <th>Order</th><th>Customer</th><th>Items</th><th>Type</th>
+            <th class="num">Total</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${list.length ? list.map(o => `<tr>
+              <td><b>${o.id}</b><br><small class="muted">${fmtDate(o.createdAt, true)}</small></td>
+              <td><div class="cell-prod"><span class="mini-avatar">${initials(o.userName)}</span>
+                <span><b>${esc(o.userName)}</b><br><small class="muted">${esc(o.userEmail || '')}</small></span></div></td>
+              <td>${o.items.reduce((n, i) => n + i.qty, 0)}</td>
+              <td><span class="badge ${o.method === 'delivery' ? 'badge-info' : 'badge-warn'}">${o.method === 'delivery' ? 'Delivery' : 'Pickup'}</span></td>
+              <td class="num"><b>${money(o.total)}</b></td>
+              <td><select class="sel" data-status="${o.id}" style="padding:.35rem .5rem;font-size:.8rem">
+                ${Object.keys(STATUS_META).map(k =>
+                  '<option value="' + k + '" ' + (o.status === k ? 'selected' : '') + '>' + STATUS_META[k].label + '</option>').join('')}
+              </select></td>
+              <td><div class="row-actions">
+                <button data-oview="${o.id}" title="View details">${icon('eye')}</button>
+                <button class="del" data-odel="${o.id}" title="Delete order">${icon('trash')}</button>
+              </div></td>
+            </tr>`).join('')
+            : '<tr><td colspan="7">' + emptyState('box', 'No orders match', 'Try a different filter or search.') + '</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+    let t;
+    $('#oq').addEventListener('input', (e) => {
+      clearTimeout(t);
+      t = setTimeout(() => { orderQuery = e.target.value.trim(); renderOrders(); }, 200);
+    });
+    $('#ofilter').addEventListener('change', (e) => { orderFilter = e.target.value; renderOrders(); });
+
+    $$('[data-status]').forEach(sel => sel.addEventListener('change', () => {
+      Orders.setStatus(sel.dataset.status, sel.value);
+      toast('Order ' + sel.dataset.status + ' → ' + STATUS_META[sel.value].label, 'ok');
+      renderNav();
+      renderOrders();
+    }));
+
+    $$('[data-oview]').forEach(b => b.addEventListener('click', () => orderModal(b.dataset.oview)));
+
+    $$('[data-odel]').forEach(b => b.addEventListener('click', () => {
+      if (!confirm('Delete order ' + b.dataset.odel + ' permanently?')) return;
+      Orders.saveAll(Orders.all().filter(o => o.id !== b.dataset.odel));
+      toast('Order deleted');
+      renderOrders();
+    }));
+
+    $('#exportCsv').addEventListener('click', () => {
+      const rows = [['Order ID', 'Date', 'Customer', 'Email', 'Method', 'Payment', 'Items', 'Total', 'Status']];
+      list.forEach(o => rows.push([o.id, fmtDate(o.createdAt, true), o.userName, o.userEmail,
+        o.method, o.payment, o.items.reduce((n, i) => n + i.qty, 0), o.total.toFixed(2), o.status]));
+      const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'brewblue-orders.csv'; a.click();
+      URL.revokeObjectURL(url);
+      toast('CSV exported', 'ok');
+    });
+  }
+
+  function orderModal(id) {
+    const o = Orders.find(id);
+    if (!o) return;
+    openModal(`
+      <div class="modal-head">
+        <div><h3 style="font-family:var(--font-head)">Order ${o.id}</h3>
+          <small class="muted">${fmtDate(o.createdAt, true)}</small></div>
+        <button class="icon-btn" data-close>${icon('x')}</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid g-2" style="gap:1rem;margin-bottom:1.2rem">
+          <div class="card card-pad"><b class="small">Customer</b>
+            <p class="small">${esc(o.userName)}<br>${esc(o.userEmail || '')}<br>${esc(o.phone || '')}</p></div>
+          <div class="card card-pad"><b class="small">${o.method === 'delivery' ? 'Deliver to' : 'Pickup'}</b>
+            <p class="small">${esc(o.address)}</p>
+            <p class="small muted">Payment: ${o.payment === 'card' ? 'Card ending ' + (o.card4 || '••••') : o.payment}</p></div>
+        </div>
+        ${o.note ? '<div class="alert alert-info">' + icon('message') + '<span>' + esc(o.note) + '</span></div>' : ''}
+        <div class="table-wrap">
+          <table class="table" style="min-width:360px">
+            <thead><tr><th>Item</th><th>Qty</th><th class="num">Total</th></tr></thead>
+            <tbody>${o.items.map(i => '<tr><td>' + esc(i.name) + '</td><td>' + i.qty +
+              '</td><td class="num">' + money(i.price * i.qty) + '</td></tr>').join('')}</tbody>
+          </table>
+        </div>
+        <div class="sum-row total" style="margin-top:1rem"><span>Total</span><b>${money(o.total)}</b></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-light" data-close>Close</button>
+        ${o.status !== 'completed' ? '<button class="btn btn-primary" id="advance">Advance to ' +
+          STATUS_META[ORDER_FLOW[Math.min(ORDER_FLOW.length - 1, ORDER_FLOW.indexOf(o.status) + 1)]].label + '</button>' : ''}
+      </div>`);
+
+    const adv = $('#advance');
+    if (adv) adv.addEventListener('click', () => {
+      const next = ORDER_FLOW[Math.min(ORDER_FLOW.length - 1, ORDER_FLOW.indexOf(o.status) + 1)];
+      Orders.setStatus(o.id, next);
+      toast('Order moved to ' + STATUS_META[next].label, 'ok');
+      closeModal(); renderNav(); renderOrders();
+    });
+  }
+
+  /* ============================================================
+     VIEW: PRODUCTS
+     ============================================================ */
+  let prodQuery = '', prodCat = 'all';
+
+  function renderProducts() {
+    let list = Products.all();
+    if (prodCat !== 'all') list = list.filter(p => p.cat === prodCat);
+    if (prodQuery) list = list.filter(p => p.name.toLowerCase().includes(prodQuery.toLowerCase()));
+
+    $('#view-products').innerHTML = `
+    <div class="toolbar-admin">
+      <div class="search-box">${icon('search')}
+        <input class="input" id="pq" placeholder="Search products…" value="${esc(prodQuery)}"></div>
+      <select class="sel" id="pcat">
+        <option value="all">All categories</option>
+        ${CATEGORIES.map(c => '<option value="' + c.id + '" ' + (prodCat === c.id ? 'selected' : '') + '>' + c.name + '</option>').join('')}
+      </select>
+      <button class="btn btn-primary btn-sm" id="addProduct">${icon('plus')} Add product</button>
+      <button class="btn btn-light btn-sm" id="resetProducts">${icon('refresh')} Reset catalogue</button>
+      <span class="small muted" style="margin-left:auto">${list.length} product(s)</span>
+    </div>
+
+    <div class="panel">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Product</th><th>Category</th><th class="num">Price</th>
+            <th class="num">Stock</th><th>Rating</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${list.map(p => `<tr>
+              <td><div class="cell-prod">
+                <span class="th" style="background:${p.bg}">${productArt(p.art, p.tint)}</span>
+                <span><b>${esc(p.name)}</b><br><small class="muted">${p.id.toUpperCase()}</small></span></div></td>
+              <td>${esc((CATEGORIES.find(c => c.id === p.cat) || {}).name || p.cat)}</td>
+              <td class="num"><b>${money(p.price)}</b>${p.old ? '<br><small class="muted"><s>' + money(p.old) + '</s></small>' : ''}</td>
+              <td class="num"><span class="badge ${p.stock > 20 ? 'badge-ok' : p.stock > 0 ? 'badge-warn' : 'badge-danger'}">${p.stock}</span></td>
+              <td>${p.rating} ★<br><small class="muted">${p.reviews} reviews</small></td>
+              <td><div class="row-actions">
+                <button data-pedit="${p.id}" title="Edit">${icon('edit')}</button>
+                <button class="del" data-pdel="${p.id}" title="Delete">${icon('trash')}</button>
+              </div></td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+    let t;
+    $('#pq').addEventListener('input', (e) => {
+      clearTimeout(t);
+      t = setTimeout(() => { prodQuery = e.target.value.trim(); renderProducts(); }, 200);
+    });
+    $('#pcat').addEventListener('change', (e) => { prodCat = e.target.value; renderProducts(); });
+    $('#addProduct').addEventListener('click', () => productModal(null));
+    $$('[data-pedit]').forEach(b => b.addEventListener('click', () => productModal(b.dataset.pedit)));
+    $$('[data-pdel]').forEach(b => b.addEventListener('click', () => {
+      const p = Products.find(b.dataset.pdel);
+      if (!confirm('Delete “' + p.name + '” from the menu?')) return;
+      Products.remove(p.id);
+      toast('Product deleted');
+      renderProducts();
+    }));
+    $('#resetProducts').addEventListener('click', () => {
+      if (!confirm('Restore the original 18 products and discard your edits?')) return;
+      DB.del('bb_products');
+      toast('Catalogue reset', 'ok');
+      renderProducts();
+    });
+  }
+
+  function productModal(id) {
+    const p = id ? Products.find(id) : null;
+    const f = p || { name: '', cat: 'hot', price: '', old: '', stock: 20, desc: '', long: '',
+                     art: 'hot', tint: '#6B4226', bg: 'linear-gradient(140deg,#F0E2D2,#FDF8F2)',
+                     badge: '', rating: 4.5, reviews: 0, cal: 0, roast: 'Medium',
+                     origin: '', caffeine: '—', tags: [], ingredients: [] };
+
+    openModal(`
+      <div class="modal-head">
+        <h3 style="font-family:var(--font-head)">${p ? 'Edit product' : 'New product'}</h3>
+        <button class="icon-btn" data-close>${icon('x')}</button>
+      </div>
+      <div class="modal-body">
+        <div class="field"><label for="fName">Name *</label><input id="fName" value="${esc(f.name)}">
+          <span class="err-msg">A name is required.</span></div>
+        <div class="form-row">
+          <div class="field"><label for="fCat">Category</label><select id="fCat">
+            ${CATEGORIES.map(c => '<option value="' + c.id + '" ' + (f.cat === c.id ? 'selected' : '') + '>' + c.name + '</option>').join('')}
+          </select></div>
+          <div class="field"><label for="fArt">Illustration</label><select id="fArt">
+            ${['hot', 'iced', 'tea', 'pastry', 'beans'].map(a =>
+              '<option value="' + a + '" ' + (f.art === a ? 'selected' : '') + '>' + a + '</option>').join('')}
+          </select></div>
+        </div>
+        <div class="form-row-3">
+          <div class="field"><label for="fPrice">Price ($) *</label><input id="fPrice" type="number" step="0.10" min="0" value="${f.price}">
+            <span class="err-msg">Enter a price.</span></div>
+          <div class="field"><label for="fOld">Was ($)</label><input id="fOld" type="number" step="0.10" min="0" value="${f.old || ''}"></div>
+          <div class="field"><label for="fStock">Stock</label><input id="fStock" type="number" min="0" value="${f.stock}"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label for="fBadge">Badge</label><select id="fBadge">
+            ${['', 'New', 'Popular', 'Bestseller', 'Value'].map(b =>
+              '<option ' + (f.badge === b ? 'selected' : '') + '>' + (b || '— none —') + '</option>').join('')}
+          </select></div>
+          <div class="field"><label for="fTint">Colour</label><input id="fTint" type="color" value="${f.tint}" style="height:46px;padding:.2rem"></div>
+        </div>
+        <div class="field"><label for="fDesc">Short description *</label>
+          <textarea id="fDesc" style="min-height:70px">${esc(f.desc)}</textarea>
+          <span class="err-msg">Write a one-line description.</span></div>
+        <div class="field"><label for="fLong">Full description</label>
+          <textarea id="fLong" style="min-height:90px">${esc(f.long)}</textarea></div>
+        <div class="form-row">
+          <div class="field"><label for="fOrigin">Origin</label><input id="fOrigin" value="${esc(f.origin)}"></div>
+          <div class="field"><label for="fTags">Tags (comma separated)</label><input id="fTags" value="${esc((f.tags || []).join(', '))}"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-light" data-close>Cancel</button>
+        <button class="btn btn-primary" id="saveProduct">${p ? 'Save changes' : 'Create product'}</button>
+      </div>`);
+
+    $('#saveProduct').addEventListener('click', () => {
+      const name = $('#fName').value.trim();
+      const price = parseFloat($('#fPrice').value);
+      const desc = $('#fDesc').value.trim();
+
+      let ok = true;
+      [['fName', !name], ['fPrice', !(price > 0)], ['fDesc', !desc]].forEach(([id, bad]) => {
+        $('#' + id).closest('.field').classList.toggle('err', bad);
+        if (bad) ok = false;
+      });
+      if (!ok) { toast('Please complete the required fields', 'err'); return; }
+
+      const tint = $('#fTint').value;
+      const saved = {
+        ...(p || {}),
+        id: p ? p.id : 'p' + Date.now().toString(36),
+        name, cat: $('#fCat').value, price,
+        old: parseFloat($('#fOld').value) || undefined,
+        stock: parseInt($('#fStock').value, 10) || 0,
+        desc, long: $('#fLong').value.trim() || desc,
+        art: $('#fArt').value, tint,
+        bg: 'linear-gradient(140deg,' + tint + '22,#FDF8F2)',
+        badge: $('#fBadge').value === '— none —' ? '' : $('#fBadge').value,
+        origin: $('#fOrigin').value.trim() || 'House',
+        tags: $('#fTags').value.split(',').map(s => s.trim()).filter(Boolean),
+        rating: p ? p.rating : 4.5,
+        reviews: p ? p.reviews : 0,
+        cal: p ? p.cal : 0,
+        roast: p ? p.roast : 'Medium',
+        caffeine: p ? p.caffeine : '—',
+        ingredients: p ? p.ingredients : []
+      };
+
+      Products.save(saved);
+      toast(p ? 'Product updated' : 'Product added', 'ok');
+      closeModal();
+      renderProducts();
+    });
+  }
+
+  /* ============================================================
+     VIEW: CUSTOMERS
+     ============================================================ */
+  function renderCustomers() {
+    const users = Auth.users();
+    const rows = users.map(u => {
+      const mine = Orders.all().filter(o => o.userId === u.id || (o.userEmail || '').toLowerCase() === u.email);
+      const spent = mine.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
+      return { u, orders: mine.length, spent, last: mine[0] };
+    }).sort((a, b) => b.spent - a.spent);
+
+    $('#view-customers').innerHTML = `
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi"><div class="ico ico-blue">${icon('users')}</div>
+        <div class="lab">Registered</div><div class="val">${users.length}</div></div>
+      <div class="kpi"><div class="ico ico-yellow">${icon('gift')}</div>
+        <div class="lab">Points issued</div><div class="val">${users.reduce((s, u) => s + (u.points || 0), 0)}</div></div>
+      <div class="kpi"><div class="ico ico-brown">${icon('dollar')}</div>
+        <div class="lab">Lifetime value</div><div class="val">${money(rows.reduce((s, r) => s + r.spent, 0))}</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>All customers</h3></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Customer</th><th>Role</th><th>Joined</th>
+            <th class="num">Orders</th><th class="num">Spent</th><th class="num">Points</th><th>Last order</th></tr></thead>
+          <tbody>${rows.map(r => `<tr>
+            <td><div class="cell-prod"><span class="mini-avatar">${initials(r.u.name)}</span>
+              <span><b>${esc(r.u.name)}</b><br><small class="muted">${esc(r.u.email)}</small></span></div></td>
+            <td><span class="badge ${r.u.role === 'admin' ? 'badge-new' : 'badge-info'}">${r.u.role}</span></td>
+            <td>${fmtDate(r.u.joined)}</td>
+            <td class="num">${r.orders}</td>
+            <td class="num"><b>${money(r.spent)}</b></td>
+            <td class="num">${r.u.points || 0}</td>
+            <td>${r.last ? '<small>' + r.last.id + '<br><span class="muted">' + timeAgo(r.last.createdAt) + '</span></small>' : '<span class="muted small">—</span>'}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  /* ============================================================
+     VIEW: FEEDBACK
+     ============================================================ */
+  const TYPE_BADGE = { complaint: 'badge-danger', suggestion: 'badge-info', praise: 'badge-ok',
+                       question: 'badge-warn', catering: 'badge-new' };
+
+  function renderFeedback() {
+    const list = Feedback.all();
+    const open = list.filter(f => f.status === 'open').length;
+    const avg = list.filter(f => f.rating).reduce((s, f, _, a) => s + f.rating / a.length, 0);
+
+    $('#view-feedback').innerHTML = `
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi"><div class="ico ico-brown">${icon('message')}</div>
+        <div class="lab">Total messages</div><div class="val">${list.length}</div></div>
+      <div class="kpi"><div class="ico ico-yellow">${icon('bell')}</div>
+        <div class="lab">Awaiting reply</div><div class="val">${open}</div></div>
+      <div class="kpi"><div class="ico ico-blue">${icon('star')}</div>
+        <div class="lab">Average rating</div><div class="val">${avg ? avg.toFixed(1) : '—'}</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Inbox</h3></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>From</th><th>Type</th><th>Subject</th><th>Rating</th><th>Received</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>${list.length ? list.map(f => `<tr>
+            <td><div class="cell-prod"><span class="mini-avatar">${initials(f.name)}</span>
+              <span><b>${esc(f.name)}</b><br><small class="muted">${esc(f.email)}</small></span></div></td>
+            <td><span class="badge ${TYPE_BADGE[f.type] || 'badge-info'}">${esc(f.type)}</span></td>
+            <td><b>${esc(f.subject)}</b>${f.orderId ? '<br><small class="muted">' + f.orderId + '</small>' : ''}</td>
+            <td>${f.rating ? f.rating + ' ★' : '<span class="muted">—</span>'}</td>
+            <td><small>${timeAgo(f.createdAt)}</small></td>
+            <td><span class="badge ${f.status === 'resolved' ? 'badge-ok' : 'badge-warn'}">${f.status === 'resolved' ? 'Resolved' : 'Open'}</span></td>
+            <td><div class="row-actions">
+              <button data-fview="${f.id}" title="Open">${icon('eye')}</button>
+              <button class="del" data-fdel="${f.id}" title="Delete">${icon('trash')}</button>
+            </div></td></tr>`).join('')
+            : '<tr><td colspan="7">' + emptyState('message', 'Inbox is empty', 'Customer messages will land here.') + '</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+    $$('[data-fview]').forEach(b => b.addEventListener('click', () => feedbackModal(b.dataset.fview)));
+    $$('[data-fdel]').forEach(b => b.addEventListener('click', () => {
+      if (!confirm('Delete this message?')) return;
+      DB.set('bb_feedback', Feedback.all().filter(f => f.id !== b.dataset.fdel));
+      toast('Message deleted');
+      renderNav(); renderFeedback();
+    }));
+  }
+
+  function feedbackModal(id) {
+    const f = Feedback.all().find(x => x.id === id);
+    if (!f) return;
+    openModal(`
+      <div class="modal-head">
+        <div><h3 style="font-family:var(--font-head)">${esc(f.subject)}</h3>
+          <small class="muted">${f.id} · ${fmtDate(f.createdAt, true)}</small></div>
+        <button class="icon-btn" data-close>${icon('x')}</button>
+      </div>
+      <div class="modal-body">
+        <div class="between" style="margin-bottom:1rem">
+          <div style="display:flex;gap:.7rem;align-items:center">
+            <span class="avatar">${initials(f.name)}</span>
+            <span><b>${esc(f.name)}</b><br><small class="muted">${esc(f.email)}</small></span>
+          </div>
+          <span class="badge ${TYPE_BADGE[f.type] || 'badge-info'}">${esc(f.type)}</span>
+        </div>
+        ${f.rating ? '<div style="margin-bottom:1rem">' + starRow(f.rating) + '</div>' : ''}
+        ${f.orderId ? '<p class="small muted" style="margin-bottom:.8rem">Related order: <b>' + f.orderId + '</b></p>' : ''}
+        <div class="card card-pad" style="background:var(--cream)">
+          <p style="white-space:pre-wrap">${esc(f.message)}</p>
+        </div>
+        <div class="field" style="margin-top:1.2rem">
+          <label for="replyBox">Your reply</label>
+          <textarea id="replyBox" placeholder="Write the reply that will be emailed to the customer…">${esc(f.reply || '')}</textarea>
+          <span class="hint">Saved against the message and shown to the customer on the Feedback page.</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-light" data-close>Close</button>
+        ${f.status === 'open'
+          ? '<button class="btn btn-primary" id="resolveFb">Save reply &amp; resolve</button>'
+          : '<button class="btn btn-brown" id="reopenFb">Reopen</button>'}
+      </div>`);
+
+    const res = $('#resolveFb');
+    if (res) res.addEventListener('click', () => {
+      Feedback.setStatus(f.id, 'resolved', $('#replyBox').value.trim());
+      toast('Reply saved and marked resolved', 'ok');
+      closeModal(); renderNav(); renderFeedback();
+    });
+    const re = $('#reopenFb');
+    if (re) re.addEventListener('click', () => {
+      Feedback.setStatus(f.id, 'open', $('#replyBox').value.trim());
+      toast('Message reopened');
+      closeModal(); renderNav(); renderFeedback();
+    });
+  }
+
+  /* ============================================================
+     VIEW: SETTINGS
+     ============================================================ */
+  function renderSettings() {
+    $('#view-settings').innerHTML = `
+    <div class="grid g-2" style="align-items:start">
+      <div class="panel">
+        <div class="panel-head"><h3>Shop details</h3></div>
+        <div class="panel-body">
+          <div id="setAlert"></div>
+          <div class="field"><label for="sName">Shop name</label><input id="sName" value="${esc(SHOP.name)}"></div>
+          <div class="field"><label for="sPhone">Phone</label><input id="sPhone" value="${esc(SHOP.phone)}"></div>
+          <div class="field"><label for="sEmail">Email</label><input id="sEmail" value="${esc(SHOP.email)}"></div>
+          <div class="field"><label for="sAddr">Address</label><input id="sAddr" value="${esc(SHOP.address)}"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Orders &amp; pricing</h3></div>
+        <div class="panel-body">
+          <div class="form-row">
+            <div class="field"><label for="sFee">Delivery fee ($)</label>
+              <input id="sFee" type="number" step="0.10" min="0" value="${SHOP.deliveryFee}"></div>
+            <div class="field"><label for="sFree">Free delivery over ($)</label>
+              <input id="sFree" type="number" step="1" min="0" value="${SHOP.freeDeliveryOver}"></div>
+          </div>
+          <div class="field"><label for="sTax">VAT rate (%)</label>
+            <input id="sTax" type="number" step="0.5" min="0" max="50" value="${SHOP.taxRate * 100}">
+            <span class="hint">Applied to every order at checkout.</span></div>
+          <button class="btn btn-primary" id="saveSettings">Save settings</button>
+          <button class="btn btn-light" id="resetSettings" style="margin-left:.5rem">Restore defaults</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Promo codes</h3></div>
+        <div class="table-wrap">
+          <table class="table" style="min-width:auto">
+            <thead><tr><th>Code</th><th>Effect</th><th>Minimum</th></tr></thead>
+            <tbody>${Object.entries(PROMOS).map(([code, p]) =>
+              '<tr><td><b>' + code + '</b></td><td>' + esc(p.label) + '</td>' +
+              '<td>' + (p.min ? money(p.min) : '—') + '</td></tr>').join('')}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Demo data</h3></div>
+        <div class="panel-body">
+          <p class="small muted" style="margin-bottom:1rem">This site keeps everything in your browser's
+            localStorage. Resetting clears orders, accounts, products and feedback, then reseeds the demo data
+            on the next page load.</p>
+          <button class="btn btn-danger" id="wipeAll">${icon('trash')} Reset all demo data</button>
+        </div>
+      </div>
+    </div>`;
+
+    $('#saveSettings').addEventListener('click', () => {
+      const s = {
+        name: $('#sName').value.trim() || SHOP.name,
+        phone: $('#sPhone').value.trim(),
+        email: $('#sEmail').value.trim(),
+        address: $('#sAddr').value.trim(),
+        deliveryFee: parseFloat($('#sFee').value) || 0,
+        freeDeliveryOver: parseFloat($('#sFree').value) || 0,
+        taxRate: (parseFloat($('#sTax').value) || 0) / 100
+      };
+      DB.set('bb_settings', s);
+      Object.assign(SHOP, s);
+      $('#setAlert').innerHTML = '<div class="alert alert-ok">' + icon('checkCircle') +
+        '<span>Settings saved — they apply across the whole site.</span></div>';
+      toast('Settings saved', 'ok');
+    });
+
+    $('#resetSettings').addEventListener('click', () => {
+      DB.del('bb_settings');
+      toast('Defaults restored — reloading');
+      setTimeout(() => location.reload(), 700);
+    });
+
+    $('#wipeAll').addEventListener('click', () => {
+      if (!confirm('Erase ALL demo data (orders, accounts, products, feedback)?')) return;
+      ['bb_users', 'bb_session', 'bb_cart', 'bb_orders', 'bb_feedback', 'bb_products',
+       'bb_favs', 'bb_seeded_v1', 'bb_settings', 'bb_promo', 'bb_method'].forEach(k => DB.del(k));
+      alert('All data cleared. The demo data will be recreated when the page reloads.');
+      location.href = 'index.html';
+    });
+  }
+
+  /* ============================================================
+     Modal helpers
+     ============================================================ */
+  function openModal(html) {
+    $('#modalBox').innerHTML = html;
+    $('#modal').classList.add('open');
+    $$('[data-close]').forEach(b => b.addEventListener('click', closeModal));
+  }
+  function closeModal() { $('#modal').classList.remove('open'); }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  /* ============================================================
+     Router
+     ============================================================ */
+  function render() {
+    if (!VIEWS.some(v => v.id === view)) view = 'overview';
+    location.hash = view;
+    $('#viewTitle').textContent = (VIEWS.find(v => v.id === view) || {}).label;
+    $$('.admin-view').forEach(el => el.classList.toggle('active', el.id === 'view-' + view));
+
+    const s = Orders.stats();
+    $('#todayPill').textContent = 'Today: ' + money(s.todayRevenue) + ' · ' + s.todayOrders + ' orders';
+
+    renderNav();
+    ({ overview: renderOverview, orders: renderOrders, products: renderProducts,
+       customers: renderCustomers, feedback: renderFeedback, settings: renderSettings })[view]();
+  }
+
+  window.addEventListener('hashchange', () => {
+    const h = location.hash.replace('#', '');
+    if (h && h !== view) { view = h; render(); }
+  });
+
+  render();
+});
+</script>
+</body>
+</html>

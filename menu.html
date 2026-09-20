@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menu — Brew &amp; Blue</title>
+<meta name="description" content="Browse the full Brew & Blue menu: hot coffee, cold brew, tea, pastries and beans to take home.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314507E'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/></svg>">
+</head>
+<body data-page="menu">
+
+<header id="site-header"></header>
+
+<main>
+  <section class="page-hero">
+    <div class="wrap">
+      <nav class="crumbs"><a href="index.html">Home</a> <span>/</span> <span>Menu</span></nav>
+      <h1>The full menu</h1>
+      <p>Eighteen things we are proud of. Filter by category, price or what you are in the mood for.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap menu-layout">
+
+      <!-- ============ FILTERS ============ -->
+      <aside class="panel filters" id="filters">
+        <div class="filter-block">
+          <h4>Category</h4>
+          <ul class="cat-list" id="catList"></ul>
+        </div>
+
+        <div class="filter-block">
+          <h4>Max price</h4>
+          <input type="range" id="priceRange" min="2" max="30" step="1" value="30">
+          <div class="range-row" style="margin-top:.5rem">
+            <span class="muted small">$2</span>
+            <b style="margin-left:auto;color:var(--blue-700)" id="priceOut">$30</b>
+          </div>
+        </div>
+
+        <div class="filter-block">
+          <h4>Tags</h4>
+          <div class="chips" id="tagChips" style="margin:0"></div>
+        </div>
+
+        <div class="filter-block">
+          <h4>Rating</h4>
+          <label class="check" style="margin-bottom:.5rem">
+            <input type="radio" name="rate" value="0" checked> <span>All ratings</span></label>
+          <label class="check" style="margin-bottom:.5rem">
+            <input type="radio" name="rate" value="4.5"> <span>4.5 and above</span></label>
+          <label class="check">
+            <input type="radio" name="rate" value="4.8"> <span>4.8 and above</span></label>
+        </div>
+
+        <div class="filter-block">
+          <button class="btn btn-light btn-block btn-sm" id="resetFilters">Reset all filters</button>
+        </div>
+      </aside>
+
+      <!-- ============ RESULTS ============ -->
+      <div>
+        <div class="toolbar">
+          <div class="search-box">
+            <span data-icon="search"></span>
+            <input type="search" id="q" class="input" placeholder="Search the menu…" aria-label="Search products">
+          </div>
+          <button class="btn btn-light mobile-filter-btn" id="filterToggle">
+            <span data-icon="filter"></span> Filters
+          </button>
+          <select class="sel" id="sort" aria-label="Sort products">
+            <option value="popular">Most popular</option>
+            <option value="low">Price: low to high</option>
+            <option value="high">Price: high to low</option>
+            <option value="name">Name A–Z</option>
+            <option value="rating">Top rated</option>
+          </select>
+        </div>
+
+        <div class="between" style="margin-bottom:1.2rem">
+          <p class="muted small" id="count">Showing 18 items</p>
+          <div class="chips" id="activeChips" style="margin:0"></div>
+        </div>
+
+        <div class="product-grid" id="grid"></div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const state = {
+    cat: param('cat') || 'all',
+    q: param('q') || '',
+    max: 30,
+    tags: [],
+    rate: 0,
+    sort: 'popular'
+  };
+
+  const ALL_TAGS = [...new Set(Products.all().flatMap(p => p.tags || []))].sort();
+
+  /* ---------- build filter UI ---------- */
+  function renderCats() {
+    const counts = Products.countByCat();
+    const items = [{ id: 'all', name: 'Everything' }, ...CATEGORIES];
+    $('#catList').innerHTML = items.map(c =>
+      '<li><button class="cat-btn ' + (state.cat === c.id ? 'active' : '') + '" data-cat="' + c.id + '">' +
+      '<span>' + c.name + '</span><span class="n">' + (counts[c.id] || 0) + '</span></button></li>').join('');
+    $$('#catList [data-cat]').forEach(b => b.addEventListener('click', () => {
+      state.cat = b.dataset.cat; renderCats(); apply();
+    }));
+  }
+
+  function renderTags() {
+    $('#tagChips').innerHTML = ALL_TAGS.map(t =>
+      '<button class="chip ' + (state.tags.includes(t) ? 'active' : '') + '" data-tag="' + t + '">' + t + '</button>').join('');
+    $$('#tagChips [data-tag]').forEach(b => b.addEventListener('click', () => {
+      const t = b.dataset.tag;
+      const i = state.tags.indexOf(t);
+      if (i > -1) state.tags.splice(i, 1); else state.tags.push(t);
+      renderTags(); apply();
+    }));
+  }
+
+  /* ---------- filtering ---------- */
+  function filtered() {
+    let list = Products.all();
+    if (state.cat !== 'all') list = list.filter(p => p.cat === state.cat);
+    if (state.q) {
+      const q = state.q.toLowerCase();
+      list = list.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.desc.toLowerCase().includes(q) ||
+        (p.tags || []).some(t => t.includes(q)));
+    }
+    list = list.filter(p => p.price <= state.max);
+    if (state.tags.length) list = list.filter(p => state.tags.every(t => (p.tags || []).includes(t)));
+    if (state.rate) list = list.filter(p => p.rating >= state.rate);
+
+    const sorters = {
+      popular: (a, b) => (b.reviews || 0) - (a.reviews || 0),
+      low:     (a, b) => a.price - b.price,
+      high:    (a, b) => b.price - a.price,
+      name:    (a, b) => a.name.localeCompare(b.name),
+      rating:  (a, b) => b.rating - a.rating
+    };
+    return list.sort(sorters[state.sort]);
+  }
+
+  function activeChips() {
+    const chips = [];
+    if (state.cat !== 'all') {
+      const c = CATEGORIES.find(x => x.id === state.cat);
+      chips.push({ label: c ? c.name : state.cat, clear: () => { state.cat = 'all'; renderCats(); } });
+    }
+    if (state.q) chips.push({ label: '“' + state.q + '”', clear: () => { state.q = ''; $('#q').value = ''; } });
+    if (state.max < 30) chips.push({ label: 'Under $' + state.max, clear: () => { state.max = 30; $('#priceRange').value = 30; $('#priceOut').textContent = '$30'; } });
+    if (state.rate) chips.push({ label: state.rate + '★ and up', clear: () => { state.rate = 0; $$('[name=rate]')[0].checked = true; } });
+    state.tags.forEach(t => chips.push({ label: t, clear: () => { state.tags = state.tags.filter(x => x !== t); renderTags(); } }));
+
+    const box = $('#activeChips');
+    box.innerHTML = chips.map((c, i) =>
+      '<button class="chip active" data-i="' + i + '">' + esc(c.label) + ' ✕</button>').join('');
+    $$('#activeChips [data-i]').forEach(b => b.addEventListener('click', () => {
+      chips[b.dataset.i].clear(); apply();
+    }));
+  }
+
+  function apply() {
+    const list = filtered();
+    const grid = $('#grid');
+    grid.innerHTML = list.length
+      ? list.map(productCard).join('')
+      : emptyState('search', 'Nothing matches those filters',
+          'Try widening the price range or clearing a tag or two.', null, null);
+    if (!list.length) grid.style.display = 'block'; else grid.style.display = '';
+    bindCardActions(grid);
+    $('#count').textContent = 'Showing ' + list.length + ' of ' + Products.all().length + ' items';
+    activeChips();
+
+    /* keep the URL shareable */
+    const u = new URL(location);
+    state.cat === 'all' ? u.searchParams.delete('cat') : u.searchParams.set('cat', state.cat);
+    state.q ? u.searchParams.set('q', state.q) : u.searchParams.delete('q');
+    history.replaceState(null, '', u);
+  }
+
+  /* ---------- events ---------- */
+  let timer;
+  $('#q').value = state.q;
+  $('#q').addEventListener('input', (e) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { state.q = e.target.value.trim(); apply(); }, 220);
+  });
+
+  $('#priceRange').addEventListener('input', (e) => {
+    state.max = +e.target.value;
+    $('#priceOut').textContent = '$' + state.max;
+    apply();
+  });
+
+  $('#sort').addEventListener('change', (e) => { state.sort = e.target.value; apply(); });
+
+  $$('[name=rate]').forEach(r => r.addEventListener('change', (e) => {
+    state.rate = +e.target.value; apply();
+  }));
+
+  $('#filterToggle').addEventListener('click', () => $('#filters').classList.toggle('open'));
+
+  $('#resetFilters').addEventListener('click', () => {
+    state.cat = 'all'; state.q = ''; state.max = 30; state.tags = []; state.rate = 0; state.sort = 'popular';
+    $('#q').value = ''; $('#priceRange').value = 30; $('#priceOut').textContent = '$30';
+    $('#sort').value = 'popular'; $$('[name=rate]')[0].checked = true;
+    renderCats(); renderTags(); apply();
+    toast('Filters cleared');
+  });
+
+  renderCats();
+  renderTags();
+  apply();
+});
+</script>
+</body>
+</html>

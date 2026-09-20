@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Orders — Brew &amp; Blue</title>
+<meta name="description" content="Track your current orders and browse your order history.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314507E'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/></svg>">
+</head>
+<body data-page="orders">
+
+<header id="site-header"></header>
+
+<main>
+  <section class="page-hero" style="padding-block:2.2rem">
+    <div class="wrap">
+      <nav class="crumbs"><a href="index.html">Home</a> <span>/</span> <span>My orders</span></nav>
+      <h1>My orders</h1>
+      <p>Everything you have ordered, newest first.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap acct-layout">
+      <aside class="panel side-nav" id="sideNav"></aside>
+      <div>
+        <div class="chips" id="statusTabs"></div>
+        <div class="between" style="margin-bottom:1.2rem">
+          <p class="muted small" id="count"></p>
+          <div class="search-box" style="max-width:260px">
+            <span data-icon="search"></span>
+            <input type="search" id="q" class="input" placeholder="Search by order or item…" aria-label="Search orders">
+          </div>
+        </div>
+        <div id="orderList"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal">
+  <div class="modal-bg" data-close></div>
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const user = Auth.require();
+  if (!user) return;
+
+  let filter = 'all', query = '';
+
+  /* ---------- account side navigation ---------- */
+  $('#sideNav').innerHTML =
+    '<a href="orders.html" class="active">' + icon('box') + 'My orders</a>' +
+    '<a href="profile.html">' + icon('user') + 'My profile</a>' +
+    '<a href="cart.html">' + icon('cart') + 'My cart</a>' +
+    '<a href="feedback.html">' + icon('message') + 'Feedback</a>' +
+    (user.role === 'admin' ? '<a href="admin.html">' + icon('grid') + 'Admin dashboard</a>' : '');
+
+  /* orders placed while signed in, plus guest orders using the same email */
+  function myOrders() {
+    return Orders.all()
+      .filter(o => o.userId === user.id || (o.userEmail || '').toLowerCase() === user.email)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  /* ---------- status tabs ---------- */
+  function renderTabs() {
+    const list = myOrders();
+    const tabs = [
+      { id: 'all',       label: 'All',       n: list.length },
+      { id: 'active',    label: 'In progress', n: list.filter(o => ['pending', 'preparing', 'ontheway'].includes(o.status)).length },
+      { id: 'completed', label: 'Completed', n: list.filter(o => o.status === 'completed').length },
+      { id: 'cancelled', label: 'Cancelled', n: list.filter(o => o.status === 'cancelled').length }
+    ];
+    $('#statusTabs').innerHTML = tabs.map(t =>
+      '<button class="chip ' + (filter === t.id ? 'active' : '') + '" data-f="' + t.id + '">' +
+      t.label + ' (' + t.n + ')</button>').join('');
+    $$('#statusTabs [data-f]').forEach(b => b.addEventListener('click', () => {
+      filter = b.dataset.f; render();
+    }));
+  }
+
+  /* ---------- tracking strip ---------- */
+  function trackHTML(o) {
+    if (o.status === 'cancelled') {
+      return '<div class="alert alert-err" style="margin:1rem 0 0">' + icon('x') +
+        '<span>This order was cancelled. Nothing was charged.</span></div>';
+    }
+    const steps = [
+      { id: 'pending',   label: 'Order placed',  ico: 'check' },
+      { id: 'preparing', label: 'Preparing',     ico: 'coffee' },
+      { id: 'ontheway',  label: o.method === 'delivery' ? 'On the way' : 'Ready', ico: 'truck' },
+      { id: 'completed', label: o.method === 'delivery' ? 'Delivered' : 'Collected', ico: 'checkCircle' }
+    ];
+    const at = ORDER_FLOW.indexOf(o.status);
+    return '<div class="track">' + steps.map((s, i) => {
+      const done = i <= at;
+      return (i ? '<span class="seg ' + (i <= at ? 'done' : '') + '"></span>' : '') +
+        '<div class="node ' + (done ? 'done' : '') + '"><i>' + icon(s.ico) + '</i><span>' + s.label + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  /* ---------- order card ---------- */
+  function orderCard(o) {
+    const meta = STATUS_META[o.status] || STATUS_META.pending;
+    const canCancel = o.status === 'pending';
+    return `
+    <article class="order-card">
+      <div class="order-top">
+        <div>
+          <span class="id">${o.id}</span>
+          <span class="badge ${meta.cls}" style="margin-left:.5rem">${meta.label}</span>
+          <div class="date">${fmtDate(o.createdAt, true)} · ${o.method === 'delivery' ? 'Delivery' : 'Pickup'}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="muted small">Total</div>
+          <b style="font-size:1.15rem;color:var(--blue-700)">${money(o.total)}</b>
+        </div>
+      </div>
+
+      <div class="order-body">
+        ${o.items.slice(0, 3).map(i => `
+          <div class="mini-item">
+            <div class="mini-thumb" style="background:${i.bg}">${productArt(i.art, i.tint)}</div>
+            <div class="n"><b>${esc(i.name)}</b><small>${i.qty} × ${money(i.price)}${i.size && ['hot','cold','tea'].includes(i.cat) ? ' · ' + i.size : ''}</small></div>
+            <span style="font-weight:600">${money(i.price * i.qty)}</span>
+          </div>`).join('')}
+        ${o.items.length > 3 ? '<p class="small muted" style="padding-top:.6rem">+ ' + (o.items.length - 3) + ' more item(s)</p>' : ''}
+        ${trackHTML(o)}
+      </div>
+
+      <div class="order-foot">
+        <span class="small muted">
+          ${o.method === 'delivery' ? icon('pin') + ' ' + esc(o.address) : icon('pin') + ' Store pickup'}
+        </span>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn btn-light btn-sm" data-view="${o.id}">Details</button>
+          <button class="btn btn-ghost btn-sm" data-reorder="${o.id}">Reorder</button>
+          ${canCancel ? '<button class="btn btn-danger btn-sm" data-cancel="' + o.id + '">Cancel</button>' : ''}
+          ${o.status === 'completed' ? '<a class="btn btn-accent btn-sm" href="feedback.html?order=' + o.id + '">Leave feedback</a>' : ''}
+        </div>
+      </div>
+    </article>`;
+  }
+
+  /* ---------- details modal ---------- */
+  function openDetails(id) {
+    const o = Orders.find(id);
+    if (!o) return;
+    const meta = STATUS_META[o.status];
+    $('#modalBox').innerHTML = `
+      <div class="modal-head">
+        <div><h3 style="font-family:var(--font-head)">Order ${o.id}</h3>
+          <small class="muted">${fmtDate(o.createdAt, true)}</small></div>
+        <button class="icon-btn" data-close aria-label="Close">${icon('x')}</button>
+      </div>
+      <div class="modal-body">
+        <div class="between" style="margin-bottom:1.2rem">
+          <span class="badge ${meta.cls}">${meta.label}</span>
+          <span class="small muted">${o.method === 'delivery' ? 'Delivery' : 'Pickup'} · ${
+            o.payment === 'cash' ? 'Cash' : o.payment === 'card' ? 'Card ending ' + (o.card4 || '••••') : 'Mobile wallet'}</span>
+        </div>
+
+        <div class="table-wrap" style="margin-bottom:1.2rem">
+          <table class="table" style="min-width:360px">
+            <thead><tr><th>Item</th><th>Qty</th><th class="num">Total</th></tr></thead>
+            <tbody>${o.items.map(i => `<tr>
+              <td><b>${esc(i.name)}</b>${i.addons && i.addons.length
+                ? '<br><small class="muted">' + i.addons.map(a => (ADDONS.find(x => x.id === a) || {}).name).filter(Boolean).join(', ') + '</small>' : ''}</td>
+              <td>${i.qty}</td><td class="num">${money(i.price * i.qty)}</td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+
+        <div class="sum-row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+        ${o.discount ? '<div class="sum-row" style="color:var(--ok)"><span>Discount</span><span>−' + money(o.discount) + '</span></div>' : ''}
+        <div class="sum-row"><span>Delivery</span><span>${o.delivery ? money(o.delivery) : 'Free'}</span></div>
+        <div class="sum-row"><span>VAT</span><span>${money(o.tax)}</span></div>
+        <div class="sum-row total"><span>Total</span><b>${money(o.total)}</b></div>
+
+        ${o.note ? '<div class="alert alert-info" style="margin-top:1.2rem">' + icon('message') + '<span>' + esc(o.note) + '</span></div>' : ''}
+
+        <h4 style="margin:1.4rem 0 .6rem">History</h4>
+        <ul>${(o.timeline || []).map(t =>
+          '<li class="between" style="padding:.45rem 0;border-bottom:1px dashed var(--line)">' +
+          '<span class="small">' + (STATUS_META[t.status] || {}).label + '</span>' +
+          '<span class="small muted">' + fmtDate(t.at, true) + '</span></li>').join('')}</ul>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-light" data-close>Close</button>
+        <button class="btn btn-primary" data-reorder="${o.id}">Reorder these items</button>
+      </div>`;
+    $('#modal').classList.add('open');
+    bindModal();
+  }
+
+  function bindModal() {
+    $$('[data-close]').forEach(b => b.addEventListener('click', () => $('#modal').classList.remove('open')));
+    $$('#modalBox [data-reorder]').forEach(b => b.addEventListener('click', () => {
+      reorder(b.dataset.reorder);
+      $('#modal').classList.remove('open');
+    }));
+  }
+
+  /* ---------- actions ---------- */
+  function reorder(id) {
+    const o = Orders.find(id);
+    if (!o) return;
+    let added = 0;
+    o.items.forEach(i => {
+      const p = Products.find(i.id);
+      if (p) { Cart.add(p, { size: i.size, addons: i.addons || [], qty: i.qty }); added++; }
+    });
+    updateCartBadge();
+    if (added) {
+      toast(added + ' item(s) added back to your cart', 'ok');
+      setTimeout(() => location.href = 'cart.html', 700);
+    } else {
+      toast('Those items are no longer on the menu', 'err');
+    }
+  }
+
+  function cancelOrder(id) {
+    if (!confirm('Cancel order ' + id + '? This cannot be undone.')) return;
+    Orders.cancel(id);
+    toast('Order cancelled');
+    render();
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    renderTabs();
+    let list = myOrders();
+
+    if (filter === 'active') list = list.filter(o => ['pending', 'preparing', 'ontheway'].includes(o.status));
+    else if (filter !== 'all') list = list.filter(o => o.status === filter);
+
+    if (query) {
+      const q = query.toLowerCase();
+      list = list.filter(o => o.id.toLowerCase().includes(q) ||
+        o.items.some(i => i.name.toLowerCase().includes(q)));
+    }
+
+    $('#count').textContent = list.length
+      ? 'Showing ' + list.length + ' order' + (list.length === 1 ? '' : 's')
+      : '';
+
+    $('#orderList').innerHTML = list.length
+      ? list.map(orderCard).join('')
+      : '<div class="panel">' + emptyState('box',
+          query ? 'No orders match that search' : 'No orders here yet',
+          query ? 'Try a different order number or item name.'
+                : 'When you place an order it will appear here with live tracking.',
+          'menu.html', 'Order something') + '</div>';
+
+    $$('[data-view]').forEach(b => b.addEventListener('click', () => openDetails(b.dataset.view)));
+    $$('#orderList [data-reorder]').forEach(b => b.addEventListener('click', () => reorder(b.dataset.reorder)));
+    $$('[data-cancel]').forEach(b => b.addEventListener('click', () => cancelOrder(b.dataset.cancel)));
+  }
+
+  let t;
+  $('#q').addEventListener('input', (e) => {
+    clearTimeout(t);
+    t = setTimeout(() => { query = e.target.value.trim(); render(); }, 200);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') $('#modal').classList.remove('open');
+  });
+
+  render();
+});
+</script>
+</body>
+</html>

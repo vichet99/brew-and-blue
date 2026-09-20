@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product — Brew &amp; Blue</title>
+<meta name="description" content="Product details, sizes, add-ons and reviews.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314507E'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/></svg>">
+</head>
+<body data-page="menu">
+
+<header id="site-header"></header>
+
+<main id="main"></main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const p = Products.find(param('id')) || Products.all()[0];
+  if (!p) { $('#main').innerHTML = '<div class="wrap section">' + emptyState('search','Product not found','That item is no longer on the menu.','menu.html','Back to menu') + '</div>'; return; }
+  document.title = p.name + ' — Brew & Blue';
+
+  const sel = { size: 'M', addons: [], qty: 1 };
+  const isDrink = ['hot', 'cold', 'tea'].includes(p.cat);
+  const catName = (CATEGORIES.find(c => c.id === p.cat) || {}).name || p.cat;
+
+  /* ---------- fake but stable reviews ---------- */
+  const NAMES = ['Sopheak Nou', 'Elena Marsh', 'Vuthy Pen', 'Grace Okoye', 'Kosal Tep', 'Liam Byrne'];
+  const BODIES = [
+    'Exactly what I hoped for. Consistent every single time I order it.',
+    'Ordered this three days running now. The staff already know my name, which is either lovely or a warning.',
+    'Great balance — not too sweet, not too bitter. Arrived still properly hot.',
+    'Good value for the size. I would happily pay a little more for this quality.',
+    'My go-to order. The only complaint is that they sell out early on weekends.'
+  ];
+  const seedNum = p.id.split('').reduce((s, ch) => s + ch.charCodeAt(0), 0);
+  const reviews = Array.from({ length: 4 }, (_, i) => ({
+    name: NAMES[(seedNum + i) % NAMES.length],
+    rating: Math.min(5, Math.max(3, Math.round(p.rating) - (i % 2))),
+    text: BODIES[(seedNum + i * 3) % BODIES.length],
+    days: (i + 1) * 4 + (seedNum % 5)
+  }));
+
+  /* ---------- markup ---------- */
+  $('#main').innerHTML = `
+  <section class="page-hero" style="padding-block:2rem">
+    <div class="wrap">
+      <nav class="crumbs">
+        <a href="index.html">Home</a> <span>/</span>
+        <a href="menu.html">Menu</a> <span>/</span>
+        <a href="menu.html?cat=${p.cat}">${esc(catName)}</a> <span>/</span>
+        <span>${esc(p.name)}</span>
+      </nav>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap pd-layout">
+
+      <div class="pd-gallery">
+        <div class="pd-main" id="pdMain" style="background:${p.bg}">
+          ${p.badge ? '<span class="badge badge-hot" style="position:absolute;top:1.2rem;left:1.2rem">' + esc(p.badge) + '</span>' : ''}
+        </div>
+        <div class="pd-thumbs" id="pdThumbs"></div>
+      </div>
+
+      <div class="pd-info">
+        <span class="p-cat">${esc(catName)}</span>
+        <h1>${esc(p.name)}</h1>
+        <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+          ${starRow(p.rating, p.reviews)}
+          <span class="badge ${p.stock > 10 ? 'badge-ok' : p.stock > 0 ? 'badge-warn' : 'badge-danger'}">
+            ${p.stock > 10 ? 'In stock' : p.stock > 0 ? 'Only ' + p.stock + ' left' : 'Sold out'}</span>
+        </div>
+
+        <div class="pd-price">
+          <span class="now" id="priceOut">${money(p.price)}</span>
+          ${p.old ? '<s>' + money(p.old) + '</s><span class="badge badge-danger">Save ' + money(p.old - p.price) + '</span>' : ''}
+        </div>
+
+        <p class="muted">${esc(p.long)}</p>
+
+        ${isDrink ? `
+        <div class="opt-group" style="margin-top:1.8rem">
+          <span class="lbl">Size <span class="muted" style="font-weight:400">choose one</span></span>
+          <div class="opt-row" id="sizeRow">
+            ${SIZES.map(s => `<button class="opt ${s.id === 'M' ? 'active' : ''}" data-size="${s.id}">
+              ${s.name}<small>${s.ml}${s.add ? ' · +' + money(s.add) : ''}</small></button>`).join('')}
+          </div>
+        </div>
+
+        <div class="opt-group">
+          <span class="lbl">Make it yours <span class="muted" style="font-weight:400">optional</span></span>
+          <div class="opt-row" id="addonRow">
+            ${ADDONS.map(a => `<button class="opt" data-addon="${a.id}">${a.name}<small>+${money(a.price)}</small></button>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <div class="pd-actions">
+          <div class="qty">
+            <button id="qMinus" aria-label="Decrease quantity">${icon('minus')}</button>
+            <input type="number" id="qty" value="1" min="1" max="99" aria-label="Quantity">
+            <button id="qPlus" aria-label="Increase quantity">${icon('plus')}</button>
+          </div>
+          <button class="btn btn-primary btn-lg" id="addBtn" ${p.stock <= 0 ? 'disabled' : ''}>
+            ${icon('cart')} Add to cart — <span id="totalOut">${money(p.price)}</span></button>
+          <button class="btn btn-light btn-icon" id="favBtn" aria-label="Save to favourites">${icon('heart')}</button>
+        </div>
+
+        <button class="btn btn-accent btn-block btn-lg" id="buyNow" ${p.stock <= 0 ? 'disabled' : ''}>Buy it now</button>
+
+        <div class="pd-meta" style="margin-top:1.8rem">
+          <div>${icon('truck')}<span>Free delivery on orders over ${money(SHOP.freeDeliveryOver)} — otherwise ${money(SHOP.deliveryFee)}</span></div>
+          <div>${icon('clock')}<span>Ready for pickup in 10–15 minutes</span></div>
+          <div>${icon('leaf')}<span>Origin: ${esc(p.origin)}${p.roast !== '—' ? ' · ' + esc(p.roast) + ' roast' : ''}</span></div>
+          <div>${icon('shield')}<span>Not happy? Tell us within 24 hours and we remake it</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="wrap">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="desc">Description</button>
+        <button class="tab" data-tab="detail">Details &amp; nutrition</button>
+        <button class="tab" data-tab="rev">Reviews (${p.reviews})</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-desc">
+        <div class="grid g-2" style="gap:2.5rem">
+          <div>
+            <h3 style="margin-bottom:.8rem">About this ${isDrink ? 'drink' : 'item'}</h3>
+            <p style="margin-bottom:1rem">${esc(p.long)}</p>
+            <p class="muted">${esc(p.desc)}</p>
+            <div class="chips" style="margin-top:1.4rem">
+              ${(p.tags || []).map(t => '<span class="chip">' + esc(t) + '</span>').join('')}
+            </div>
+          </div>
+          <div class="card card-pad">
+            <h4 style="margin-bottom:1rem">What goes in it</h4>
+            <ul>${(p.ingredients || []).map(i =>
+              '<li style="display:flex;gap:.6rem;padding:.45rem 0;border-bottom:1px dashed var(--line)">' +
+              '<span style="color:var(--ok);flex:none">' + icon('check') + '</span>' + esc(i) + '</li>').join('')}</ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-detail">
+        <div class="nutri" style="margin-bottom:2rem">
+          <div><b>${p.cal}</b><span>Calories (medium)</span></div>
+          <div><b>${esc(p.caffeine)}</b><span>Caffeine</span></div>
+          <div><b>${esc(p.roast)}</b><span>Roast level</span></div>
+          <div><b>${p.stock}</b><span>In stock today</span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <tbody>
+              <tr><th style="width:220px">Origin</th><td>${esc(p.origin)}</td></tr>
+              <tr><th>Category</th><td>${esc(catName)}</td></tr>
+              <tr><th>Item code</th><td>${p.id.toUpperCase()}</td></tr>
+              <tr><th>Allergens</th><td>${isDrink ? 'Contains milk unless a plant milk is selected' : 'May contain gluten, dairy, eggs and nuts'}</td></tr>
+              <tr><th>Serving</th><td>${isDrink ? 'Served hot or over ice on request' : 'Served at room temperature; ask us to warm it'}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-rev">
+        <div class="grid g-2" style="gap:2.5rem;align-items:start">
+          <div class="card card-pad center">
+            <div style="font-family:var(--font-head);font-size:3.4rem;color:var(--blue-700);line-height:1">${p.rating}</div>
+            <div style="display:flex;justify-content:center">${starRow(p.rating)}</div>
+            <p class="muted small" style="margin-top:.5rem">Based on ${p.reviews} verified orders</p>
+            <div style="margin-top:1.4rem;text-align:left">
+              ${[5, 4, 3, 2, 1].map(n => {
+                const pct = n === Math.round(p.rating) ? 64 : n === Math.round(p.rating) - 1 ? 22 : n > p.rating ? 8 : 3;
+                return '<div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.4rem">' +
+                  '<span class="small muted" style="width:12px">' + n + '</span>' +
+                  '<div style="flex:1;height:7px;background:var(--brown-100);border-radius:4px;overflow:hidden">' +
+                  '<i style="display:block;height:100%;width:' + pct + '%;background:var(--yellow-500)"></i></div>' +
+                  '<span class="small muted" style="width:32px;text-align:right">' + pct + '%</span></div>';
+              }).join('')}
+            </div>
+          </div>
+          <div>
+            ${reviews.map(r => `
+            <div class="review">
+              <span class="avatar">${initials(r.name)}</span>
+              <div>
+                <div class="between" style="margin-bottom:.2rem">
+                  <b style="color:var(--ink)">${esc(r.name)}</b>
+                  <small class="muted">${r.days} days ago</small>
+                </div>
+                ${starRow(r.rating)}
+                <p class="small" style="margin-top:.5rem">${esc(r.text)}</p>
+              </div>
+            </div>`).join('')}
+            <a href="feedback.html" class="btn btn-ghost btn-sm" style="margin-top:1.2rem">Write a review</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="background:#fff;border-top:1px solid var(--line)">
+    <div class="wrap">
+      <div class="sec-head"><span class="eyebrow">Goes well with</span><h2>You might also like</h2></div>
+      <div class="product-grid" id="related"></div>
+    </div>
+  </section>`;
+
+  /* ---------- gallery ---------- */
+  const views = [
+    { art: p.art,   tint: p.tint,      label: 'Main' },
+    { art: p.art,   tint: '#14507E',   label: 'Blue' },
+    { art: p.art,   tint: '#6B4226',   label: 'Brown' },
+    { art: 'beans', tint: p.tint,      label: 'Beans' }
+  ];
+  const paint = (i) => {
+    $('#pdMain').innerHTML = ($('#pdMain').querySelector('.badge') ? $('#pdMain').querySelector('.badge').outerHTML : '')
+      + productArt(views[i].art, views[i].tint);
+    $$('#pdThumbs .pd-thumb').forEach((t, j) => t.classList.toggle('active', i === j));
+  };
+  $('#pdThumbs').innerHTML = views.map((v, i) =>
+    '<button class="pd-thumb ' + (i === 0 ? 'active' : '') + '" data-v="' + i + '" style="background:' + p.bg + '" aria-label="View ' + v.label + '">' +
+    productArt(v.art, v.tint) + '</button>').join('');
+  $$('#pdThumbs [data-v]').forEach(b => b.addEventListener('click', () => paint(+b.dataset.v)));
+  paint(0);
+
+  /* ---------- price maths ---------- */
+  function unit() {
+    const s = SIZES.find(x => x.id === sel.size);
+    const addAdd = sel.addons.reduce((t, id) => t + (ADDONS.find(a => a.id === id) || { price: 0 }).price, 0);
+    return p.price + (isDrink && s ? s.add : 0) + addAdd;
+  }
+  function refresh() {
+    $('#priceOut').textContent = money(unit());
+    $('#totalOut').textContent = money(unit() * sel.qty);
+  }
+
+  if (isDrink) {
+    $$('#sizeRow [data-size]').forEach(b => b.addEventListener('click', () => {
+      sel.size = b.dataset.size;
+      $$('#sizeRow .opt').forEach(x => x.classList.toggle('active', x === b));
+      refresh();
+    }));
+    $$('#addonRow [data-addon]').forEach(b => b.addEventListener('click', () => {
+      const id = b.dataset.addon;
+      const i = sel.addons.indexOf(id);
+      if (i > -1) sel.addons.splice(i, 1); else sel.addons.push(id);
+      b.classList.toggle('active');
+      refresh();
+    }));
+  }
+
+  const qtyInput = $('#qty');
+  const setQty = (n) => { sel.qty = Math.max(1, Math.min(99, n)); qtyInput.value = sel.qty; refresh(); };
+  $('#qMinus').addEventListener('click', () => setQty(sel.qty - 1));
+  $('#qPlus').addEventListener('click', () => setQty(sel.qty + 1));
+  qtyInput.addEventListener('change', () => setQty(parseInt(qtyInput.value, 10) || 1));
+
+  /* ---------- actions ---------- */
+  function addToCart() {
+    Cart.add(p, { size: isDrink ? sel.size : 'M', addons: sel.addons, qty: sel.qty });
+    updateCartBadge();
+  }
+  $('#addBtn').addEventListener('click', () => {
+    addToCart();
+    toast(sel.qty + ' × ' + p.name + ' added to cart', 'ok');
+  });
+  $('#buyNow').addEventListener('click', () => { addToCart(); location.href = 'checkout.html'; });
+
+  const favBtn = $('#favBtn');
+  const paintFav = () => favBtn.style.color = Favs.has(p.id) ? 'var(--danger)' : '';
+  favBtn.addEventListener('click', () => {
+    const on = Favs.toggle(p.id);
+    paintFav();
+    toast(on ? 'Saved to favourites' : 'Removed from favourites');
+  });
+  paintFav();
+
+  /* ---------- tabs ---------- */
+  $$('.tab').forEach(t => t.addEventListener('click', () => {
+    $$('.tab').forEach(x => x.classList.remove('active'));
+    $$('.tab-panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    $('#tab-' + t.dataset.tab).classList.add('active');
+  }));
+
+  /* ---------- related ---------- */
+  const related = Products.all()
+    .filter(x => x.id !== p.id && (x.cat === p.cat || (x.tags || []).some(t => (p.tags || []).includes(t))))
+    .slice(0, 4);
+  const rel = $('#related');
+  rel.innerHTML = (related.length ? related : Products.all().filter(x => x.id !== p.id).slice(0, 4))
+    .map(productCard).join('');
+  bindCardActions(rel);
+
+  refresh();
+});
+</script>
+</body>
+</html>

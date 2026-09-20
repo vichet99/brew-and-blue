@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brew &amp; Blue — Coffee with a view</title>
+<meta name="description" content="Small-batch coffee roasted in the city. Order espresso, cold brew, pastries and beans online for delivery or pickup.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314507E'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/><path d='M66 38h6a10 10 0 0 1 0 20h-3' fill='none' stroke='%23F5B301' stroke-width='6'/></svg>">
+</head>
+<body data-page="home">
+
+<header id="site-header"></header>
+
+<main>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <div>
+        <span class="eyebrow eyebrow--light">Roasted this week · Poured today</span>
+        <h1>Good coffee, <em>no queue.</em></h1>
+        <p class="lead">We roast in small batches above the river and pour it downstairs. Order ahead from the menu,
+          pick it up in ten minutes, or have it delivered while it is still hot.</p>
+        <div class="hero-cta">
+          <a href="menu.html" class="btn btn-accent btn-lg">Order now</a>
+          <a href="#about" class="btn btn-ghost btn-lg" style="color:#fff;border-color:rgba(255,255,255,.5)">Our story</a>
+        </div>
+        <div class="hero-stats">
+          <div><b>12k+</b><span>Cups poured monthly</span></div>
+          <div><b>4.8</b><span>Average rating</span></div>
+          <div><b>25 min</b><span>Average delivery</span></div>
+        </div>
+      </div>
+      <div class="hero-art">
+        <div class="disc" id="heroArt"></div>
+        <div class="hero-chip c1">
+          <span class="dot" style="background:#FFF6DF;color:#D89A00" data-icon="fire"></span>
+          <span>Fresh roast<small>Batch of 18 Sept</small></span>
+        </div>
+        <div class="hero-chip c2">
+          <span class="dot" style="background:#DCEBF8;color:#14507E" data-icon="truck"></span>
+          <span>Free delivery<small>On orders over $25</small></span>
+        </div>
+      </div>
+    </div>
+    <svg class="wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
+      <path fill="#FDF8F2" d="M0,32 C240,64 480,0 720,16 C960,32 1200,64 1440,40 L1440,60 L0,60 Z"></path>
+    </svg>
+  </section>
+
+  <!-- ============ FEATURE STRIP ============ -->
+  <section class="wrap">
+    <div class="features">
+      <div class="feature">
+        <div class="ico ico-brown" data-icon="coffee"></div>
+        <h4>Roasted weekly</h4>
+        <p>Every bag leaves the roaster within six days of being bagged.</p>
+      </div>
+      <div class="feature">
+        <div class="ico ico-blue" data-icon="truck"></div>
+        <h4>Hot in 25 minutes</h4>
+        <p>Insulated delivery across the city, free above $25.</p>
+      </div>
+      <div class="feature">
+        <div class="ico ico-yellow" data-icon="gift"></div>
+        <h4>Points on every cup</h4>
+        <p>Earn 1 point per $1. Every 100 points is $5 off.</p>
+      </div>
+      <div class="feature">
+        <div class="ico ico-brown" data-icon="leaf"></div>
+        <h4>Direct trade</h4>
+        <p>Four farms, named on every bag, paid above market.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CATEGORIES ============ -->
+  <section class="section">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Browse</span>
+        <h2>What are you in the mood for?</h2>
+        <p>Five shelves, one counter. Tap a category to jump straight into the menu.</p>
+      </div>
+      <div class="grid g-4" id="catGrid"></div>
+    </div>
+  </section>
+
+  <!-- ============ BESTSELLERS ============ -->
+  <section class="section" style="background:#fff;border-block:1px solid var(--line)">
+    <div class="wrap">
+      <div class="between" style="margin-bottom:2rem">
+        <div>
+          <span class="eyebrow">Most ordered</span>
+          <h2>This week's favourites</h2>
+        </div>
+        <a href="menu.html" class="btn btn-ghost">View full menu <span data-icon="arrowRight"></span></a>
+      </div>
+      <div class="product-grid" id="featured"></div>
+    </div>
+  </section>
+
+  <!-- ============ ABOUT ============ -->
+  <section class="section" id="about">
+    <div class="wrap grid g-2" style="align-items:center;gap:3rem">
+      <div>
+        <span class="eyebrow">Since 2018</span>
+        <h2>A roastery that happens to have a café attached</h2>
+        <p style="margin:1.2rem 0">We started with one second-hand roaster and a stall at the Saturday market. Seven years later
+          the roaster is bigger, the queue is longer, and the rule has not changed: if we would not drink it ourselves,
+          we do not sell it.</p>
+        <p class="muted">Everything on the bar is roasted upstairs. The pastries are laminated overnight in the back kitchen.
+          The blue on the walls is the same blue on the cups, which was either good branding or a paint sale — the story changes
+          depending on who you ask.</p>
+        <div class="grid g-2" style="margin-top:2rem;gap:1rem">
+          <div class="card card-pad">
+            <b style="font-family:var(--font-head);font-size:1.8rem;color:var(--blue-700)">4</b>
+            <p class="small muted">Partner farms, visited every year</p>
+          </div>
+          <div class="card card-pad">
+            <b style="font-family:var(--font-head);font-size:1.8rem;color:var(--brown-600)">62kg</b>
+            <p class="small muted">Roasted every week upstairs</p>
+          </div>
+        </div>
+      </div>
+      <div class="card card-pad" style="background:linear-gradient(140deg,var(--blue-100),var(--brown-100))">
+        <h3 style="margin-bottom:1.2rem">Opening hours</h3>
+        <div id="hours"></div>
+        <div style="margin-top:1.4rem;padding-top:1.4rem;border-top:1px dashed var(--brown-200)">
+          <div style="display:flex;gap:.7rem;align-items:flex-start;margin-bottom:.8rem">
+            <span style="color:var(--blue-700);flex:none" data-icon="pin"></span>
+            <span class="small">128 Riverside Walk, Phnom Penh, Cambodia</span>
+          </div>
+          <div style="display:flex;gap:.7rem;align-items:center">
+            <span style="color:var(--blue-700);flex:none" data-icon="phone"></span>
+            <a href="tel:+85523987654" class="small">+855 23 987 654</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LOYALTY BANNER ============ -->
+  <section class="section--tight">
+    <div class="wrap">
+      <div style="background:linear-gradient(135deg,var(--blue-900),var(--blue-700) 60%,var(--brown-600));border-radius:var(--r-xl);padding:clamp(2rem,5vw,3.4rem);color:#fff;position:relative;overflow:hidden">
+        <div class="between" style="position:relative;z-index:2">
+          <div style="max-width:52ch">
+            <span class="eyebrow eyebrow--light">Loyalty</span>
+            <h2 style="color:#fff">Every hundred points buys the next round</h2>
+            <p style="color:#CBDCEA;margin-top:.8rem">Create an account and start collecting from your very first order.
+              Points apply themselves at checkout — nothing to remember, no card to lose.</p>
+          </div>
+          <a href="signup.html" class="btn btn-accent btn-lg">Create free account</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TESTIMONIALS ============ -->
+  <section class="section">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Regulars</span>
+        <h2>What people say over the counter</h2>
+      </div>
+      <div class="grid g-3" id="testimonials"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* hero illustration */
+  $('#heroArt').innerHTML = productArt('hot', '#F5B301');
+
+  /* category tiles */
+  const counts = Products.countByCat();
+  $('#catGrid').innerHTML = CATEGORIES.map(c => {
+    const sample = Products.byCat(c.id)[0];
+    return '<a href="menu.html?cat=' + c.id + '" class="feature" style="text-align:center">' +
+      '<div class="art-box" style="height:120px;margin-bottom:.6rem">' +
+        productArt(sample ? sample.art : 'hot', sample ? sample.tint : '#6B4226') + '</div>' +
+      '<h4>' + c.name + '</h4>' +
+      '<p>' + counts[c.id] + ' items on the menu</p></a>';
+  }).join('');
+
+  /* featured products — highest rated six */
+  const featured = Products.all().slice().sort((a, b) => b.rating - a.rating).slice(0, 8);
+  const grid = $('#featured');
+  grid.innerHTML = featured.map(productCard).join('');
+  bindCardActions(grid);
+
+  /* opening hours */
+  $('#hours').innerHTML = SHOP.hours.map(h =>
+    '<div class="between" style="padding:.5rem 0;border-bottom:1px dashed var(--brown-200)">' +
+    '<span class="small">' + h.d + '</span><b class="small">' + h.h + '</b></div>').join('');
+
+  /* testimonials */
+  $('#testimonials').innerHTML = TESTIMONIALS.map(t =>
+    '<div class="card card-pad">' + starRow(t.rating) +
+      '<p style="margin:1rem 0 1.4rem">“' + esc(t.text) + '”</p>' +
+      '<div style="display:flex;gap:.8rem;align-items:center">' +
+        '<span class="avatar">' + initials(t.name) + '</span>' +
+        '<span><b style="display:block;font-size:.92rem;color:var(--ink)">' + esc(t.name) + '</b>' +
+        '<small class="muted">' + esc(t.role) + '</small></span></div></div>').join('');
+});
+</script>
+</body>
+</html>

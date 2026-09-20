@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout — Brew &amp; Blue</title>
+<meta name="description" content="Complete your order: delivery details, payment method and confirmation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314507E'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/></svg>">
+</head>
+<body data-page="checkout">
+
+<header id="site-header"></header>
+
+<main>
+  <section class="page-hero" style="padding-block:2.2rem">
+    <div class="wrap">
+      <nav class="crumbs"><a href="index.html">Home</a> <span>/</span> <a href="cart.html">Cart</a> <span>/</span> <span>Checkout</span></nav>
+      <h1>Checkout</h1>
+      <p>Three short steps and the kitchen gets going.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap" id="checkoutRoot"></div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const root = $('#checkoutRoot');
+  const user = Auth.current();
+  let method = DB.get('bb_method', 'delivery');
+  let promo  = DB.get('bb_promo', '');
+  let payment = 'cash';
+  let usePoints = false;
+  let step = 1;
+
+  if (!Cart.list().length) {
+    root.innerHTML = '<div class="panel">' + emptyState('cart', 'There is nothing to check out',
+      'Your cart is empty — add something from the menu first.', 'menu.html', 'Browse the menu') + '</div>';
+    return;
+  }
+
+  const pointsAvailable = user ? Math.floor((user.points || 0) / 100) * 100 : 0;
+
+  /* ---------- summary sidebar ---------- */
+  function summaryHTML() {
+    const t = Cart.totals(promo, method, usePoints ? pointsAvailable : 0);
+    return `
+    <aside class="panel card-pad summary">
+      <h3 style="margin-bottom:1rem">Your order</h3>
+      ${Cart.list().map(l => `
+        <div class="mini-item">
+          <div class="mini-thumb" style="background:${l.bg}">${productArt(l.art, l.tint)}</div>
+          <div class="n"><b>${esc(l.name)}</b>
+            <small>${l.qty} × ${money(Cart.unitPrice(l))}${['hot','cold','tea'].includes(l.cat) ? ' · ' + l.size : ''}</small></div>
+          <span style="font-weight:600">${money(Cart.lineTotal(l))}</span>
+        </div>`).join('')}
+
+      <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--line)">
+        <div class="sum-row"><span>Subtotal</span><span>${money(t.subtotal)}</span></div>
+        ${t.discount ? '<div class="sum-row" style="color:var(--ok)"><span>Discount</span><span>−' + money(t.discount) + '</span></div>' : ''}
+        <div class="sum-row"><span>${method === 'delivery' ? 'Delivery' : 'Pickup'}</span>
+          <span>${t.delivery ? money(t.delivery) : '<b style="color:var(--ok)">Free</b>'}</span></div>
+        <div class="sum-row"><span>VAT (${SHOP.taxRate * 100}%)</span><span>${money(t.tax)}</span></div>
+        <div class="sum-row total"><span>Total</span><b>${money(t.total)}</b></div>
+      </div>
+
+      ${pointsAvailable >= 100 ? `
+      <label class="check" style="margin-top:1rem;padding:.8rem;background:var(--yellow-100);border-radius:var(--r-md)">
+        <input type="checkbox" id="usePoints" ${usePoints ? 'checked' : ''}>
+        <span>Use ${pointsAvailable} loyalty points<br><small class="muted">Saves ${money(pointsAvailable / 100 * 5)} on this order</small></span>
+      </label>` : ''}
+
+      <a href="cart.html" class="btn btn-light btn-block btn-sm" style="margin-top:1rem">Edit cart</a>
+      <div class="trust"><div>${icon('shield')} Secure</div><div>${icon('clock')} 25 min average</div></div>
+    </aside>`;
+  }
+
+  /* ---------- steps ---------- */
+  function stepsHTML() {
+    const labels = ['Your details', 'Payment', 'Review'];
+    return '<div class="steps">' + labels.map((l, i) => {
+      const n = i + 1;
+      const cls = step > n ? 'done' : step === n ? 'active' : '';
+      return (i ? '<span class="step-line"></span>' : '') +
+        '<div class="step ' + cls + '"><i>' + (step > n ? '✓' : n) + '</i><span>' + l + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  /* ---------- step 1 : details ---------- */
+  function step1() {
+    return `
+    <div class="panel card-pad">
+      ${!user ? `<div class="alert alert-info">${icon('info')}
+        <span><b>Checking out as a guest.</b> <a href="signin.html?next=checkout.html">Sign in</a> to collect loyalty points and track this order from My Orders.</span></div>` : ''}
+
+      <h3 style="margin-bottom:1.2rem">How would you like it?</h3>
+      <div class="opt-row" style="margin-bottom:1.6rem">
+        <button class="opt ${method === 'delivery' ? 'active' : ''}" data-method="delivery" style="flex:1">
+          Delivery<small>25–40 min to your door</small></button>
+        <button class="opt ${method === 'pickup' ? 'active' : ''}" data-method="pickup" style="flex:1">
+          Pickup<small>Ready at the counter in 10–15 min</small></button>
+      </div>
+
+      <h3 style="margin-bottom:1.2rem">Contact details</h3>
+      <div class="form-row">
+        <div class="field"><label for="ckName">Full name</label>
+          <input id="ckName" value="${esc(user ? user.name : '')}" placeholder="Dara Sok" required>
+          <span class="err-msg">Please tell us your name.</span></div>
+        <div class="field"><label for="ckPhone">Phone number</label>
+          <input id="ckPhone" type="tel" value="${esc(user ? user.phone : '')}" placeholder="+855 12 345 678" required>
+          <span class="err-msg">We need a number in case the driver gets lost.</span></div>
+      </div>
+      <div class="field"><label for="ckEmail">Email</label>
+        <input id="ckEmail" type="email" value="${esc(user ? user.email : '')}" placeholder="you@example.com" required>
+        <span class="err-msg">Enter a valid email so we can send the receipt.</span></div>
+
+      <div id="addrBlock" class="${method === 'delivery' ? '' : 'hide'}">
+        <h3 style="margin:1.6rem 0 1.2rem">Delivery address</h3>
+        <div class="field"><label for="ckAddr">Street address</label>
+          <input id="ckAddr" value="${esc(user ? user.address : '')}" placeholder="45 Street 240, Daun Penh">
+          <span class="err-msg">An address is needed for delivery.</span></div>
+        <div class="form-row">
+          <div class="field"><label for="ckCity">City / district</label>
+            <input id="ckCity" value="${esc(user ? user.city : '')}" placeholder="Phnom Penh"></div>
+          <div class="field"><label for="ckTime">Preferred time</label>
+            <select id="ckTime">
+              <option value="asap">As soon as possible</option>
+              <option value="30">In 30 minutes</option>
+              <option value="60">In 1 hour</option>
+              <option value="120">In 2 hours</option>
+            </select></div>
+        </div>
+      </div>
+
+      <div id="pickupBlock" class="${method === 'pickup' ? '' : 'hide'}">
+        <div class="alert alert-warn" style="margin-top:1.4rem">${icon('pin')}
+          <span><b>Collect from:</b> ${SHOP.address}<br>We hold pickup orders at the counter for one hour.</span></div>
+      </div>
+
+      <div class="field" style="margin-top:1.2rem"><label for="ckNote">Notes for the barista <span class="muted" style="font-weight:400">optional</span></label>
+        <textarea id="ckNote" placeholder="Less ice, oat milk, leave at reception…" style="min-height:90px"></textarea></div>
+
+      <div class="between" style="margin-top:1rem">
+        <a href="cart.html" class="btn btn-light">Back to cart</a>
+        <button class="btn btn-primary btn-lg" id="toStep2">Continue to payment ${icon('arrowRight')}</button>
+      </div>
+    </div>`;
+  }
+
+  /* ---------- step 2 : payment ---------- */
+  function step2() {
+    return `
+    <div class="panel card-pad">
+      <h3 style="margin-bottom:1.2rem">How are you paying?</h3>
+
+      <label class="pay-opt ${payment === 'cash' ? 'active' : ''}" data-pay="cash">
+        <input type="radio" name="pay" value="cash" ${payment === 'cash' ? 'checked' : ''}>
+        <span class="ico">${icon('cash')}</span>
+        <span><b>Cash on ${method === 'delivery' ? 'delivery' : 'collection'}</b>
+          <small>Pay the driver or at the counter. Please have it ready.</small></span>
+      </label>
+
+      <label class="pay-opt ${payment === 'wallet' ? 'active' : ''}" data-pay="wallet">
+        <input type="radio" name="pay" value="wallet" ${payment === 'wallet' ? 'checked' : ''}>
+        <span class="ico">${icon('wallet')}</span>
+        <span><b>Mobile wallet</b>
+          <small>Scan the QR code we send with your confirmation.</small></span>
+      </label>
+
+      <label class="pay-opt ${payment === 'card' ? 'active' : ''}" data-pay="card">
+        <input type="radio" name="pay" value="card" ${payment === 'card' ? 'checked' : ''}>
+        <span class="ico">${icon('card')}</span>
+        <span><b>Credit / debit card</b>
+          <small>Visa, Mastercard and UnionPay accepted.</small></span>
+      </label>
+
+      <div id="cardBlock" class="${payment === 'card' ? '' : 'hide'}" style="margin-top:1.4rem">
+        <div class="alert alert-warn">${icon('alert')}
+          <span><b>Demo project — do not enter a real card.</b> This site has no payment processor behind it.
+          Use the test number <code>4242 4242 4242 4242</code>. Only the last four digits are ever stored, locally in your browser.</span></div>
+        <div class="field"><label for="cardName">Name on card</label>
+          <input id="cardName" placeholder="DARA SOK" autocomplete="off"></div>
+        <div class="field"><label for="cardNo">Card number</label>
+          <input id="cardNo" inputmode="numeric" placeholder="4242 4242 4242 4242" maxlength="19" autocomplete="off">
+          <span class="err-msg">Enter the 16-digit test card number.</span></div>
+        <div class="form-row-3">
+          <div class="field"><label for="cardExp">Expiry</label>
+            <input id="cardExp" placeholder="MM/YY" maxlength="5" autocomplete="off"></div>
+          <div class="field"><label for="cardCvc">CVC</label>
+            <input id="cardCvc" inputmode="numeric" placeholder="123" maxlength="4" autocomplete="off"></div>
+          <div class="field"><label for="cardZip">Postcode</label>
+            <input id="cardZip" placeholder="12000" autocomplete="off"></div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:1.4rem">
+        <label class="check"><input type="checkbox" id="agree" checked>
+          <span>I agree to the terms of service and the refund policy.</span></label>
+        <span class="err-msg" style="display:none" id="agreeErr">Please accept the terms to continue.</span>
+      </div>
+
+      <div class="between" style="margin-top:1rem">
+        <button class="btn btn-light" id="backTo1">Back</button>
+        <button class="btn btn-primary btn-lg" id="toStep3">Review order ${icon('arrowRight')}</button>
+      </div>
+    </div>`;
+  }
+
+  /* ---------- step 3 : review ---------- */
+  function step3() {
+    const d = form;
+    const payLabel = { cash: 'Cash on ' + (method === 'delivery' ? 'delivery' : 'collection'),
+                       wallet: 'Mobile wallet', card: 'Card ending ' + (d.card4 || '••••') }[payment];
+    return `
+    <div class="panel card-pad">
+      <h3 style="margin-bottom:1.2rem">Check everything over</h3>
+
+      <div class="grid g-2" style="gap:1rem">
+        <div class="card card-pad">
+          <div class="between" style="margin-bottom:.6rem">
+            <b>${method === 'delivery' ? 'Delivering to' : 'Collecting from'}</b>
+            <button class="btn btn-light btn-sm" data-goto="1">Edit</button></div>
+          <p class="small">${esc(d.name)}<br>${esc(d.phone)}<br>${esc(d.email)}</p>
+          <p class="small muted" style="margin-top:.5rem">
+            ${method === 'delivery' ? esc(d.address + (d.city ? ', ' + d.city : '')) : esc(SHOP.address)}</p>
+        </div>
+        <div class="card card-pad">
+          <div class="between" style="margin-bottom:.6rem">
+            <b>Payment</b><button class="btn btn-light btn-sm" data-goto="2">Edit</button></div>
+          <p class="small">${esc(payLabel)}</p>
+          <p class="small muted" style="margin-top:.5rem">
+            ${method === 'delivery' ? 'Arriving in roughly 25–40 minutes' : 'Ready in 10–15 minutes'}</p>
+        </div>
+      </div>
+
+      ${d.note ? '<div class="alert alert-info" style="margin-top:1.2rem">' + icon('message') +
+        '<span><b>Your note:</b> ' + esc(d.note) + '</span></div>' : ''}
+
+      <h4 style="margin:1.6rem 0 .8rem">Items</h4>
+      <div class="table-wrap">
+        <table class="table" style="min-width:420px">
+          <thead><tr><th>Item</th><th>Qty</th><th class="num">Price</th></tr></thead>
+          <tbody>
+            ${Cart.list().map(l => `<tr>
+              <td><b>${esc(l.name)}</b><br><small class="muted">${['hot','cold','tea'].includes(l.cat) ? (SIZES.find(s => s.id === l.size) || {}).name || '' : ''}
+              ${(l.addons || []).map(a => (ADDONS.find(x => x.id === a) || {}).name).filter(Boolean).join(', ')}</small></td>
+              <td>${l.qty}</td>
+              <td class="num">${money(Cart.lineTotal(l))}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="between" style="margin-top:1.6rem">
+        <button class="btn btn-light" id="backTo2">Back</button>
+        <button class="btn btn-accent btn-lg" id="placeOrder">${icon('checkCircle')} Place order — ${money(Cart.totals(promo, method, usePoints ? pointsAvailable : 0).total)}</button>
+      </div>
+    </div>`;
+  }
+
+  /* ---------- form state ---------- */
+  const form = { name: '', phone: '', email: '', address: '', city: '', time: 'asap', note: '', card4: '' };
+
+  /* ---------- render ---------- */
+  function render() {
+    root.innerHTML = stepsHTML() +
+      '<div class="cart-layout">' +
+        '<div>' + (step === 1 ? step1() : step === 2 ? step2() : step3()) + '</div>' +
+        summaryHTML() +
+      '</div>';
+    bind();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function fieldError(id, on) {
+    const el = $('#' + id);
+    if (el) el.closest('.field').classList.toggle('err', on);
+    return !on;
+  }
+
+  function bind() {
+    /* summary controls */
+    const up = $('#usePoints');
+    if (up) up.addEventListener('change', () => { usePoints = up.checked; render(); });
+
+    if (step === 1) {
+      $$('[data-method]').forEach(b => b.addEventListener('click', () => {
+        method = b.dataset.method;
+        DB.set('bb_method', method);
+        render();
+      }));
+
+      $('#toStep2').addEventListener('click', () => {
+        form.name = $('#ckName').value.trim();
+        form.phone = $('#ckPhone').value.trim();
+        form.email = $('#ckEmail').value.trim();
+        form.note = $('#ckNote').value.trim();
+        if (method === 'delivery') {
+          form.address = $('#ckAddr').value.trim();
+          form.city = $('#ckCity').value.trim();
+          form.time = $('#ckTime').value;
+        }
+
+        let ok = true;
+        ok = fieldError('ckName', form.name.length < 2) && ok;
+        ok = fieldError('ckPhone', form.phone.replace(/\D/g, '').length < 8) && ok;
+        ok = fieldError('ckEmail', !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email)) && ok;
+        if (method === 'delivery') ok = fieldError('ckAddr', form.address.length < 5) && ok;
+
+        if (!ok) { toast('Please fix the highlighted fields', 'err'); return; }
+        step = 2; render();
+      });
+    }
+
+    if (step === 2) {
+      $$('[data-pay]').forEach(el => el.addEventListener('click', () => {
+        payment = el.dataset.pay;
+        $$('.pay-opt').forEach(x => x.classList.toggle('active', x === el));
+        $('#cardBlock').classList.toggle('hide', payment !== 'card');
+      }));
+
+      /* light formatting on the demo card fields */
+      const no = $('#cardNo');
+      if (no) no.addEventListener('input', () => {
+        no.value = no.value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+      });
+      const exp = $('#cardExp');
+      if (exp) exp.addEventListener('input', () => {
+        let v = exp.value.replace(/\D/g, '').slice(0, 4);
+        if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+        exp.value = v;
+      });
+      const cvc = $('#cardCvc');
+      if (cvc) cvc.addEventListener('input', () => cvc.value = cvc.value.replace(/\D/g, '').slice(0, 4));
+
+      $('#backTo1').addEventListener('click', () => { step = 1; render(); });
+
+      $('#toStep3').addEventListener('click', () => {
+        if (!$('#agree').checked) { $('#agreeErr').style.display = 'block'; toast('Please accept the terms', 'err'); return; }
+        if (payment === 'card') {
+          const digits = $('#cardNo').value.replace(/\D/g, '');
+          if (digits.length !== 16) { fieldError('cardNo', true); toast('Enter the 16-digit test card number', 'err'); return; }
+          fieldError('cardNo', false);
+          form.card4 = digits.slice(-4);   /* only the last 4 are kept */
+        }
+        step = 3; render();
+      });
+    }
+
+    if (step === 3) {
+      $('#backTo2').addEventListener('click', () => { step = 2; render(); });
+      $$('[data-goto]').forEach(b => b.addEventListener('click', () => { step = +b.dataset.goto; render(); }));
+      $('#placeOrder').addEventListener('click', placeOrder);
+    }
+  }
+
+  /* ---------- place the order ---------- */
+  function placeOrder() {
+    const btn = $('#placeOrder');
+    btn.disabled = true;
+    btn.innerHTML = icon('refresh') + ' Sending to the kitchen…';
+
+    const t = Cart.totals(promo, method, usePoints ? pointsAvailable : 0);
+    const items = Cart.list().map(l => ({
+      key: l.key, id: l.id, name: l.name, base: l.base,
+      price: Cart.unitPrice(l), qty: l.qty, size: l.size,
+      addons: l.addons, art: l.art, tint: l.tint, bg: l.bg, cat: l.cat
+    }));
+
+    setTimeout(() => {
+      const order = Orders.create({
+        userId: user ? user.id : 'guest',
+        userName: form.name, userEmail: form.email, phone: form.phone,
+        items, subtotal: t.subtotal, discount: t.discount, pointsDiscount: t.pointsDiscount,
+        delivery: t.delivery, tax: t.tax, total: t.total,
+        method, payment, promo,
+        card4: payment === 'card' ? form.card4 : '',
+        address: method === 'delivery' ? form.address + (form.city ? ', ' + form.city : '') : 'Store pickup',
+        note: form.note, preferredTime: form.time
+      });
+
+      /* loyalty: spend then earn */
+      if (user) {
+        const spent = usePoints ? pointsAvailable : 0;
+        Auth.update({ points: Math.max(0, (user.points || 0) - spent) });
+        Auth.addPoints(t.total);
+      }
+
+      Cart.clear();
+      DB.set('bb_promo', '');
+      updateCartBadge();
+      showSuccess(order);
+    }, 900);
+  }
+
+  /* ---------- confirmation ---------- */
+  function showSuccess(o) {
+    const eta = o.method === 'delivery' ? '25–40 minutes' : '10–15 minutes';
+    root.innerHTML = `
+    <div class="success-wrap">
+      <div class="success-ring">${icon('checkCircle')}</div>
+      <h1>Order confirmed</h1>
+      <p class="muted" style="margin:.8rem 0 1.6rem">Thank you ${esc(o.userName.split(' ')[0])} — the kitchen has it.
+        We sent a receipt to <b>${esc(o.userEmail)}</b>.</p>
+
+      <div class="panel card-pad" style="text-align:left">
+        <div class="between" style="border-bottom:1px dashed var(--line);padding-bottom:1rem;margin-bottom:1rem">
+          <div><small class="muted">Order number</small><br><b style="font-size:1.1rem">${o.id}</b></div>
+          <div style="text-align:right"><small class="muted">${o.method === 'delivery' ? 'Arriving in' : 'Ready in'}</small><br><b>${eta}</b></div>
+        </div>
+        ${o.items.map(i => `<div class="mini-item">
+          <div class="mini-thumb" style="background:${i.bg}">${productArt(i.art, i.tint)}</div>
+          <div class="n"><b>${esc(i.name)}</b><small>${i.qty} × ${money(i.price)}</small></div>
+          <span style="font-weight:600">${money(i.price * i.qty)}</span></div>`).join('')}
+        <div class="sum-row total" style="margin-top:1rem"><span>Paid total</span><b>${money(o.total)}</b></div>
+        <p class="small muted" style="margin-top:.6rem">
+          ${o.payment === 'cash' ? 'Pay in cash on ' + (o.method === 'delivery' ? 'delivery' : 'collection') + '.'
+            : o.payment === 'card' ? 'Charged to the card ending ' + o.card4 + '.' : 'Pay via mobile wallet using the QR code in your email.'}</p>
+      </div>
+
+      <div style="display:flex;gap:.8rem;justify-content:center;margin-top:1.6rem;flex-wrap:wrap">
+        <a href="orders.html" class="btn btn-primary btn-lg">Track my order</a>
+        <a href="menu.html" class="btn btn-light btn-lg">Keep shopping</a>
+      </div>
+      ${!user ? '<p class="small muted" style="margin-top:1.4rem">Ordered as a guest — <a href="signup.html">create an account</a> with this email to see it under My Orders.</p>' : ''}
+    </div>`;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast('Order ' + o.id + ' placed', 'ok');
+  }
+
+  render();
+});
+</script>
+</body>
+</html>

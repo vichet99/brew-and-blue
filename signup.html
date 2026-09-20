@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create Account — Brew &amp; Blue</title>
+<meta name="description" content="Create a Brew & Blue account to order ahead, track deliveries and collect loyalty points.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314507E'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/></svg>">
+</head>
+<body data-page="signup">
+
+<header id="site-header"></header>
+
+<main>
+  <div class="auth-split">
+
+    <aside class="auth-side">
+      <span class="eyebrow eyebrow--light">Join the regulars</span>
+      <h2>Free to join. Pays for itself by cup twenty.</h2>
+      <p>An account takes thirty seconds and saves you time on every order after that.</p>
+      <ul>
+        <li><span data-icon="gift"></span><span><b style="color:#fff">50 welcome points</b><br>Straight into your account when you sign up.</span></li>
+        <li><span data-icon="clock"></span><span><b style="color:#fff">Saved addresses</b><br>Checkout in two taps, not twelve fields.</span></li>
+        <li><span data-icon="bell"></span><span><b style="color:#fff">First to know</b><br>New roasts and seasonal drinks before the board changes.</span></li>
+        <li><span data-icon="ticket"></span><span><b style="color:#fff">Member pricing</b><br>Regular offers that never appear in store.</span></li>
+      </ul>
+      <div class="auth-quote">
+        “Ordered ahead, walked in, walked out. Four minutes total.”
+        <br><b style="font-style:normal;color:var(--yellow-400)">— Sophea C., regular since 2021</b>
+      </div>
+    </aside>
+
+    <section class="auth-main">
+      <div class="auth-card">
+        <h1>Create your account</h1>
+        <p class="muted" style="margin-bottom:1.6rem">Already have one? <a href="signin.html"><b>Sign in instead</b></a></p>
+
+        <div id="formAlert"></div>
+
+        <form id="signupForm" novalidate>
+          <div class="field">
+            <label for="name">Full name</label>
+            <input type="text" id="name" placeholder="Dara Sok" autocomplete="name" required>
+            <span class="err-msg">Please enter your full name (at least 2 characters).</span>
+          </div>
+
+          <div class="field">
+            <label for="email">Email address</label>
+            <input type="email" id="email" placeholder="you@example.com" autocomplete="email" required>
+            <span class="err-msg" id="emailErr">Enter a valid email address.</span>
+          </div>
+
+          <div class="field">
+            <label for="phone">Phone number</label>
+            <input type="tel" id="phone" placeholder="+855 12 345 678" autocomplete="tel" required>
+            <span class="err-msg">Enter a phone number with at least 8 digits.</span>
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="input-group">
+              <input type="password" id="password" placeholder="At least 6 characters" autocomplete="new-password" required>
+              <button type="button" class="toggle-pass" id="togglePass" aria-label="Show password"></button>
+            </div>
+            <div class="pw-meter" id="meter"><i></i><i></i><i></i><i></i></div>
+            <span class="hint" id="pwHint">Use 6+ characters. Mixing letters, numbers and symbols makes it stronger.</span>
+            <span class="err-msg">Password must be at least 6 characters.</span>
+          </div>
+
+          <div class="field">
+            <label for="confirm">Confirm password</label>
+            <input type="password" id="confirm" placeholder="Type it once more" autocomplete="new-password" required>
+            <span class="err-msg">The two passwords do not match.</span>
+          </div>
+
+          <div class="field">
+            <label class="check"><input type="checkbox" id="terms">
+              <span>I agree to the <a href="#">terms of service</a> and <a href="#">privacy policy</a>.</span></label>
+            <span class="err-msg" id="termsErr" style="display:none">You need to accept the terms to continue.</span>
+          </div>
+
+          <div class="field">
+            <label class="check"><input type="checkbox" id="news" checked>
+              <span>Email me new roasts and members-only offers. <span class="muted">(You can turn this off any time.)</span></span></label>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">Create account</button>
+        </form>
+
+        <div class="divider">or sign up with</div>
+        <div class="social-row">
+          <button class="btn btn-light" data-social="Google">Google</button>
+          <button class="btn btn-light" data-social="Facebook">Facebook</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  if (Auth.current()) { location.replace('index.html'); return; }
+
+  /* password visibility */
+  const pass = $('#password'), toggle = $('#togglePass');
+  toggle.innerHTML = icon('eye');
+  toggle.addEventListener('click', () => {
+    const show = pass.type === 'password';
+    pass.type = show ? 'text' : 'password';
+    toggle.innerHTML = icon(show ? 'eyeOff' : 'eye');
+  });
+
+  /* strength meter */
+  const meter = $('#meter'), hint = $('#pwHint');
+  const LABELS = ['', 'Weak — add a few more characters', 'Fair — try adding a number',
+                  'Good — one symbol would make it strong', 'Strong password'];
+  pass.addEventListener('input', () => {
+    const v = pass.value;
+    let score = 0;
+    if (v.length >= 6) score++;
+    if (v.length >= 10) score++;
+    if (/[0-9]/.test(v) && /[a-zA-Z]/.test(v)) score++;
+    if (/[^a-zA-Z0-9]/.test(v)) score++;
+    score = Math.min(4, score);
+    meter.className = 'pw-meter' + (v ? ' s' + score : '');
+    hint.textContent = v ? LABELS[score] || LABELS[1]
+      : 'Use 6+ characters. Mixing letters, numbers and symbols makes it stronger.';
+  });
+
+  const alertBox = $('#formAlert');
+  const setErr = (id, bad) => { $('#' + id).closest('.field').classList.toggle('err', bad); return !bad; };
+
+  $('#signupForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    alertBox.innerHTML = '';
+
+    const name = $('#name').value.trim();
+    const email = $('#email').value.trim();
+    const phone = $('#phone').value.trim();
+    const pw = pass.value;
+    const confirm = $('#confirm').value;
+    const terms = $('#terms').checked;
+
+    let ok = true;
+    ok = setErr('name', name.length < 2) && ok;
+    ok = setErr('email', !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) && ok;
+    ok = setErr('phone', phone.replace(/\D/g, '').length < 8) && ok;
+    ok = setErr('password', pw.length < 6) && ok;
+    ok = setErr('confirm', confirm !== pw || !confirm) && ok;
+    $('#termsErr').style.display = terms ? 'none' : 'block';
+    if (!terms) ok = false;
+
+    if (!ok) { toast('Please check the highlighted fields', 'err'); return; }
+
+    const btn = $('#submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = icon('refresh') + ' Creating your account…';
+
+    setTimeout(() => {
+      const res = Auth.signup({ name, email, phone, password: pw });
+      if (!res.ok) {
+        alertBox.innerHTML = '<div class="alert alert-err">' + icon('alert') + '<span>' + esc(res.error) +
+          ' <a href="signin.html">Sign in instead?</a></span></div>';
+        $('#email').closest('.field').classList.add('err');
+        btn.disabled = false;
+        btn.textContent = 'Create account';
+        return;
+      }
+      Auth.update({ newsletter: $('#news').checked, points: 50 });   /* welcome points */
+      alertBox.innerHTML = '<div class="alert alert-ok">' + icon('checkCircle') +
+        '<span>Account created — 50 welcome points are already in your balance.</span></div>';
+      toast('Welcome to Brew & Blue, ' + name.split(' ')[0] + '!', 'ok');
+      setTimeout(() => location.href = 'index.html', 900);
+    }, 600);
+  });
+
+  $$('[data-social]').forEach(b => b.addEventListener('click', () =>
+    toast(b.dataset.social + ' sign-up would need a real OAuth app.', 'err')));
+});
+</script>
+</body>
+</html>

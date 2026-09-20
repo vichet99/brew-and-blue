@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Vercel
+.vercel/
+
+# Local editor / tooling state
+.claude/settings.local.json
+.vscode/
+.idea/
+
+# OS noise
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feedback &amp; Complaints — Brew &amp; Blue</title>
+<meta name="description" content="Tell us what went well or what went wrong. We reply to every message within one working day.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314507E'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/></svg>">
+</head>
+<body data-page="feedback">
+
+<header id="site-header"></header>
+
+<main>
+  <section class="page-hero">
+    <div class="wrap">
+      <nav class="crumbs"><a href="index.html">Home</a> <span>/</span> <span>Feedback</span></nav>
+      <h1>Tell us how we did</h1>
+      <p>Complaint, suggestion or compliment — it all lands on the same desk, and a real person reads it.
+        We reply within one working day.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap" style="display:grid;grid-template-columns:1.5fr 1fr;gap:2rem;align-items:start" id="fbLayout">
+
+      <!-- ============ FORM ============ -->
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Send us a message</h3>
+          <span class="small muted">All fields marked * are required</span>
+        </div>
+        <div class="panel-body">
+          <div id="fbResult"></div>
+
+          <form id="fbForm" novalidate>
+            <div class="field">
+              <span class="lbl">What is this about? *</span>
+              <div class="opt-row" id="typeRow">
+                <button type="button" class="opt active" data-type="complaint">Complaint<small>Something went wrong</small></button>
+                <button type="button" class="opt" data-type="suggestion">Suggestion<small>An idea for us</small></button>
+                <button type="button" class="opt" data-type="praise">Compliment<small>Something we did well</small></button>
+                <button type="button" class="opt" data-type="question">Question<small>General enquiry</small></button>
+                <button type="button" class="opt" data-type="catering">Catering<small>20+ cups</small></button>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="field"><label for="fbName">Your name *</label>
+                <input id="fbName" placeholder="Dara Sok" required>
+                <span class="err-msg">Please tell us who you are.</span></div>
+              <div class="field"><label for="fbEmail">Email *</label>
+                <input id="fbEmail" type="email" placeholder="you@example.com" required>
+                <span class="err-msg">We need a valid email to reply to.</span></div>
+            </div>
+
+            <div class="form-row">
+              <div class="field"><label for="fbOrder">Related order <span class="muted" style="font-weight:400">optional</span></label>
+                <select id="fbOrder"><option value="">Not about a specific order</option></select></div>
+              <div class="field"><label for="fbBranch">Which branch?</label>
+                <select id="fbBranch">
+                  <option>Riverside (main)</option>
+                  <option>Online order / delivery</option>
+                  <option>Another location</option>
+                </select></div>
+            </div>
+
+            <div class="field"><label for="fbSubject">Subject *</label>
+              <input id="fbSubject" placeholder="Give it a short headline" required>
+              <span class="err-msg">A one-line subject helps us route it.</span></div>
+
+            <div class="field">
+              <span class="lbl">How would you rate your experience?</span>
+              <div class="rate-row" id="rateRow"></div>
+              <span class="hint" id="rateHint">Tap a star — optional, but it helps.</span>
+            </div>
+
+            <div class="field"><label for="fbMsg">Your message *</label>
+              <textarea id="fbMsg" placeholder="Tell us what happened, with as much detail as you can remember." required></textarea>
+              <span class="hint"><span id="charCount">0</span> / 1000 characters</span>
+              <span class="err-msg">Please write at least 15 characters so we can act on it.</span></div>
+
+            <div class="field">
+              <label class="check"><input type="checkbox" id="fbContact" checked>
+                <span>I would like a reply by email.</span></label>
+            </div>
+
+            <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+              <button type="submit" class="btn btn-primary btn-lg" id="fbSubmit">Send message</button>
+              <button type="reset" class="btn btn-light btn-lg">Clear form</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ============ CONTACT SIDEBAR ============ -->
+      <aside class="stack">
+        <div class="panel card-pad">
+          <h3 style="margin-bottom:1.2rem">Reach us directly</h3>
+          <div class="stack" style="gap:.8rem">
+            <div class="contact-card">
+              <span class="ico ico-blue" data-icon="phone"></span>
+              <div><b>Call the shop</b><p class="small muted">+855 23 987 654</p>
+                <p class="small muted">Daily, 07:00 – 20:00</p></div>
+            </div>
+            <div class="contact-card">
+              <span class="ico ico-brown" data-icon="mail"></span>
+              <div><b>Email us</b><p class="small muted">hello@brewandblue.coffee</p>
+                <p class="small muted">Replies within 1 working day</p></div>
+            </div>
+            <div class="contact-card">
+              <span class="ico ico-yellow" data-icon="pin"></span>
+              <div><b>Come in</b><p class="small muted">128 Riverside Walk,<br>Phnom Penh, Cambodia</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel card-pad" style="background:linear-gradient(140deg,var(--blue-100),var(--yellow-100))">
+          <h4 style="margin-bottom:.6rem">Our promise</h4>
+          <p class="small">If a drink is not right, tell us within 24 hours and we will remake it or refund it —
+            no receipt archaeology, no argument.</p>
+        </div>
+
+        <div class="panel" id="mineWrap" style="display:none">
+          <div class="panel-head"><h3>Your previous messages</h3></div>
+          <div class="panel-body" id="mineList"></div>
+        </div>
+      </aside>
+
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section class="section" id="faq" style="background:#fff;border-top:1px solid var(--line)">
+    <div class="wrap" style="max-width:860px">
+      <div class="sec-head">
+        <span class="eyebrow">Before you write</span>
+        <h2>Frequently asked questions</h2>
+        <p>Most messages we get are one of these six.</p>
+      </div>
+      <div id="faqList"></div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const user = Auth.current();
+  let type = 'complaint';
+  let rating = 0;
+
+  /* ---------- prefill for signed-in customers ---------- */
+  if (user) {
+    $('#fbName').value = user.name;
+    $('#fbEmail').value = user.email;
+  }
+
+  /* ---------- related order dropdown ---------- */
+  const myOrders = user
+    ? Orders.all().filter(o => o.userId === user.id || (o.userEmail || '').toLowerCase() === user.email)
+    : [];
+  const sel = $('#fbOrder');
+  myOrders.slice(0, 15).forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = o.id + ' — ' + fmtDate(o.createdAt) + ' (' + money(o.total) + ')';
+    sel.appendChild(opt);
+  });
+  const preOrder = param('order');
+  if (preOrder) {
+    sel.value = preOrder;
+    if (sel.value === preOrder) {
+      type = 'praise';
+      $$('#typeRow .opt').forEach(b => b.classList.toggle('active', b.dataset.type === 'praise'));
+    }
+  }
+
+  /* ---------- type buttons ---------- */
+  $$('#typeRow .opt').forEach(b => b.addEventListener('click', () => {
+    type = b.dataset.type;
+    $$('#typeRow .opt').forEach(x => x.classList.toggle('active', x === b));
+  }));
+
+  /* ---------- star rating ---------- */
+  const LABELS = ['', 'Poor — we let you down', 'Not great', 'Okay', 'Good', 'Excellent — thank you!'];
+  const rateRow = $('#rateRow');
+  rateRow.innerHTML = [1, 2, 3, 4, 5].map(n =>
+    '<button type="button" data-rate="' + n + '" aria-label="' + n + ' star' + (n > 1 ? 's' : '') + '">' + icon('star') + '</button>').join('');
+  $$('[data-rate]').forEach(b => b.addEventListener('click', () => {
+    rating = +b.dataset.rate;
+    $$('[data-rate]').forEach(x => x.classList.toggle('on', +x.dataset.rate <= rating));
+    $('#rateHint').textContent = LABELS[rating];
+  }));
+
+  /* ---------- character counter ---------- */
+  const msg = $('#fbMsg');
+  msg.addEventListener('input', () => {
+    if (msg.value.length > 1000) msg.value = msg.value.slice(0, 1000);
+    $('#charCount').textContent = msg.value.length;
+  });
+
+  /* ---------- submit ---------- */
+  const setErr = (id, bad) => { $('#' + id).closest('.field').classList.toggle('err', bad); return !bad; };
+
+  $('#fbForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const name = $('#fbName').value.trim();
+    const email = $('#fbEmail').value.trim();
+    const subject = $('#fbSubject').value.trim();
+    const message = msg.value.trim();
+
+    let ok = true;
+    ok = setErr('fbName', name.length < 2) && ok;
+    ok = setErr('fbEmail', !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) && ok;
+    ok = setErr('fbSubject', subject.length < 3) && ok;
+    ok = setErr('fbMsg', message.length < 15) && ok;
+    if (!ok) { toast('Please check the highlighted fields', 'err'); return; }
+
+    const btn = $('#fbSubmit');
+    btn.disabled = true;
+    btn.innerHTML = icon('refresh') + ' Sending…';
+
+    setTimeout(() => {
+      const item = Feedback.create({
+        name, email, type, subject, message, rating,
+        orderId: sel.value,
+        branch: $('#fbBranch').value,
+        wantsReply: $('#fbContact').checked
+      });
+
+      $('#fbResult').innerHTML =
+        '<div class="alert alert-ok" style="align-items:center">' + icon('checkCircle') +
+        '<span><b>Message received — reference ' + item.id + '.</b><br>' +
+        (type === 'complaint'
+          ? 'A manager will look at this and reply to ' + esc(email) + ' within one working day.'
+          : 'Thank you. We read every message and reply to ' + esc(email) + ' when a reply is wanted.') +
+        '</span></div>';
+
+      $('#fbForm').reset();
+      rating = 0;
+      $$('[data-rate]').forEach(x => x.classList.remove('on'));
+      $('#rateHint').textContent = 'Tap a star — optional, but it helps.';
+      $('#charCount').textContent = '0';
+      if (user) { $('#fbName').value = user.name; $('#fbEmail').value = user.email; }
+      btn.disabled = false;
+      btn.textContent = 'Send message';
+
+      toast('Feedback sent — reference ' + item.id, 'ok');
+      renderMine();
+      window.scrollTo({ top: $('#fbResult').getBoundingClientRect().top + window.scrollY - 120, behavior: 'smooth' });
+    }, 700);
+  });
+
+  /* ---------- my previous messages ---------- */
+  function renderMine() {
+    if (!user) return;
+    const mine = Feedback.mine(user.email);
+    if (!mine.length) return;
+    $('#mineWrap').style.display = '';
+    $('#mineList').innerHTML = mine.slice(0, 5).map(f => `
+      <div style="padding:.8rem 0;border-bottom:1px dashed var(--line)">
+        <div class="between" style="margin-bottom:.2rem">
+          <b class="small">${esc(f.subject)}</b>
+          <span class="badge ${f.status === 'resolved' ? 'badge-ok' : 'badge-warn'}">${f.status === 'resolved' ? 'Answered' : 'Open'}</span>
+        </div>
+        <p class="small muted">${f.id} · ${timeAgo(f.createdAt)}</p>
+        ${f.reply ? '<p class="small" style="margin-top:.4rem;padding:.6rem;background:var(--ok-bg);border-radius:8px">' +
+          '<b>Our reply:</b> ' + esc(f.reply) + '</p>' : ''}
+      </div>`).join('');
+  }
+  renderMine();
+
+  /* ---------- FAQ accordion ---------- */
+  $('#faqList').innerHTML = FAQS.map((f, i) => `
+    <div class="faq-item ${i === 0 ? 'open' : ''}">
+      <button class="faq-q" aria-expanded="${i === 0}">${esc(f.q)}${icon('chevronDown')}</button>
+      <div class="faq-a"><p>${esc(f.a)}</p></div>
+    </div>`).join('');
+  $$('.faq-q').forEach(b => b.addEventListener('click', () => {
+    const item = b.closest('.faq-item');
+    const open = item.classList.toggle('open');
+    b.setAttribute('aria-expanded', String(open));
+  }));
+
+  /* single-column on narrow screens */
+  const applyLayout = () => {
+    $('#fbLayout').style.gridTemplateColumns = window.innerWidth < 1000 ? '1fr' : '1.5fr 1fr';
+  };
+  applyLayout();
+  window.addEventListener('resize', applyLayout);
+});
+</script>
+</body>
+</html>

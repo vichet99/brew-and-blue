@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shopping Cart — Brew &amp; Blue</title>
+<meta name="description" content="Review the items in your cart before checking out.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/pages.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314507E'/><path d='M28 32h38v26a19 19 0 0 1-38 0z' fill='%23F5B301'/></svg>">
+</head>
+<body data-page="cart">
+
+<header id="site-header"></header>
+
+<main>
+  <section class="page-hero" style="padding-block:2.2rem">
+    <div class="wrap">
+      <nav class="crumbs"><a href="index.html">Home</a> <span>/</span> <span>Shopping cart</span></nav>
+      <h1>Your cart</h1>
+      <p id="heroCount">Review everything before you check out.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap" id="cartRoot"></div>
+  </section>
+
+  <section class="section" style="background:#fff;border-top:1px solid var(--line)" id="suggestWrap">
+    <div class="wrap">
+      <div class="sec-head"><span class="eyebrow">Add a little something</span><h2>Goes well with your order</h2></div>
+      <div class="product-grid" id="suggest"></div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const PROMO_KEY = 'bb_promo', METHOD_KEY = 'bb_method';
+  let promo  = DB.get(PROMO_KEY, '');
+  let method = DB.get(METHOD_KEY, 'delivery');
+
+  function lineOptions(l) {
+    const parts = [];
+    const size = SIZES.find(s => s.id === l.size);
+    if (size && ['hot', 'cold', 'tea'].includes(l.cat)) parts.push(size.name + ' · ' + size.ml);
+    (l.addons || []).forEach(id => {
+      const a = ADDONS.find(x => x.id === id);
+      if (a) parts.push(a.name);
+    });
+    return parts.join(' · ') || 'Standard';
+  }
+
+  function render() {
+    const items = Cart.list();
+    const root = $('#cartRoot');
+
+    if (!items.length) {
+      root.innerHTML = '<div class="panel">' + emptyState('cart', 'Your cart is empty',
+        'Nothing here yet. The cold brew is very good, for what it is worth.',
+        'menu.html', 'Browse the menu') + '</div>';
+      $('#heroCount').textContent = 'Your cart is empty at the moment.';
+      renderSuggest();
+      return;
+    }
+
+    const t = Cart.totals(promo, method);
+    $('#heroCount').textContent = t.count + (t.count === 1 ? ' item' : ' items') + ' ready to go.';
+
+    root.innerHTML = `
+    <div class="cart-layout">
+      <div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>${t.count} item${t.count === 1 ? '' : 's'} in your cart</h3>
+            <button class="link-del" id="clearCart">${icon('trash')} Clear cart</button>
+          </div>
+          <div id="lines">
+            ${items.map(l => `
+            <div class="cart-item">
+              <div class="cart-thumb" style="background:${l.bg}">${productArt(l.art, l.tint)}</div>
+              <div class="cart-info">
+                <h4><a href="product.html?id=${l.id}" style="color:inherit">${esc(l.name)}</a></h4>
+                <p class="cart-opts">${esc(lineOptions(l))}</p>
+                <p class="small muted" style="margin-top:.3rem">${money(Cart.unitPrice(l))} each</p>
+                <div class="qty" style="margin-top:.6rem;transform:scale(.9);transform-origin:left">
+                  <button data-dec="${l.key}" aria-label="Decrease">${icon('minus')}</button>
+                  <input type="number" value="${l.qty}" min="1" max="99" data-qty="${l.key}" aria-label="Quantity for ${esc(l.name)}">
+                  <button data-inc="${l.key}" aria-label="Increase">${icon('plus')}</button>
+                </div>
+              </div>
+              <div class="cart-line-actions">
+                <span class="cart-line-total">${money(Cart.lineTotal(l))}</span>
+                <button class="link-del" data-del="${l.key}">${icon('trash')} Remove</button>
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>
+
+        <div class="between" style="margin-top:1.2rem">
+          <a href="menu.html" class="btn btn-light">${icon('chevronRight')} Continue shopping</a>
+          <span class="small muted">Prices include VAT at ${SHOP.taxRate * 100}%</span>
+        </div>
+      </div>
+
+      <aside class="panel card-pad summary">
+        <h3 style="margin-bottom:1rem">Order summary</h3>
+
+        <div class="opt-row" style="margin-bottom:1.2rem">
+          <button class="opt ${method === 'delivery' ? 'active' : ''}" data-method="delivery" style="flex:1">
+            Delivery<small>${SHOP.freeDeliveryOver ? 'Free over ' + money(SHOP.freeDeliveryOver) : ''}</small></button>
+          <button class="opt ${method === 'pickup' ? 'active' : ''}" data-method="pickup" style="flex:1">
+            Pickup<small>Ready in 10–15 min</small></button>
+        </div>
+
+        <div class="promo">
+          <input class="input" id="promoInput" placeholder="Promo code" value="${esc(promo)}" aria-label="Promo code">
+          <button class="btn btn-brown" id="applyPromo">Apply</button>
+        </div>
+        ${promo ? (t.promoValid
+          ? '<p class="small" style="color:var(--ok)">' + esc(PROMOS[promo.toUpperCase()].label) + ' applied.</p>'
+          : '<p class="small" style="color:var(--danger)">That code is not valid for this order.</p>') : ''}
+        <p class="small muted" style="margin:.6rem 0 1rem">Try <code>BREW10</code>, <code>BLUE5</code> or <code>FREESHIP</code>.</p>
+
+        <div class="sum-row"><span>Subtotal</span><span>${money(t.subtotal)}</span></div>
+        ${t.discount ? '<div class="sum-row" style="color:var(--ok)"><span>Discount</span><span>−' + money(t.discount) + '</span></div>' : ''}
+        <div class="sum-row"><span>${method === 'delivery' ? 'Delivery' : 'Pickup'}</span>
+          <span>${t.delivery ? money(t.delivery) : '<b style="color:var(--ok)">Free</b>'}</span></div>
+        <div class="sum-row"><span>VAT (${SHOP.taxRate * 100}%)</span><span>${money(t.tax)}</span></div>
+        <div class="sum-row total"><span>Total</span><b>${money(t.total)}</b></div>
+
+        ${method === 'delivery' && t.subtotal < SHOP.freeDeliveryOver
+          ? '<div class="alert alert-info" style="margin:1rem 0 0">' + icon('truck') +
+            '<span>Add ' + money(SHOP.freeDeliveryOver - t.subtotal) + ' more for free delivery.</span></div>' : ''}
+
+        <a href="checkout.html" class="btn btn-primary btn-block btn-lg" style="margin-top:1.2rem">
+          Proceed to checkout ${icon('arrowRight')}</a>
+
+        <div class="trust">
+          <div>${icon('shield')} Secure checkout</div>
+          <div>${icon('refresh')} Remake guarantee</div>
+        </div>
+      </aside>
+    </div>`;
+
+    bindLines();
+    renderSuggest();
+  }
+
+  function bindLines() {
+    $$('[data-inc]').forEach(b => b.addEventListener('click', () => {
+      const l = Cart.list().find(x => x.key === b.dataset.inc);
+      Cart.setQty(b.dataset.inc, l.qty + 1); render();
+    }));
+    $$('[data-dec]').forEach(b => b.addEventListener('click', () => {
+      const l = Cart.list().find(x => x.key === b.dataset.dec);
+      Cart.setQty(b.dataset.dec, l.qty - 1); render();
+    }));
+    $$('[data-qty]').forEach(inp => inp.addEventListener('change', () => {
+      Cart.setQty(inp.dataset.qty, parseInt(inp.value, 10) || 1); render();
+    }));
+    $$('[data-del]').forEach(b => b.addEventListener('click', () => {
+      Cart.remove(b.dataset.del);
+      toast('Item removed from cart');
+      render();
+    }));
+    $('#clearCart').addEventListener('click', () => {
+      if (confirm('Remove every item from your cart?')) {
+        Cart.clear(); toast('Cart cleared'); render();
+      }
+    });
+    $$('[data-method]').forEach(b => b.addEventListener('click', () => {
+      method = b.dataset.method;
+      DB.set('bb_method', method);
+      render();
+    }));
+    $('#applyPromo').addEventListener('click', () => {
+      const code = $('#promoInput').value.trim().toUpperCase();
+      if (!code) { promo = ''; DB.set('bb_promo', ''); render(); return; }
+      if (!PROMOS[code]) { toast('That promo code does not exist', 'err'); return; }
+      const sub = Cart.totals('', method).subtotal;
+      if (PROMOS[code].min && sub < PROMOS[code].min) {
+        toast('Spend ' + money(PROMOS[code].min) + ' to use ' + code, 'err'); return;
+      }
+      promo = code; DB.set('bb_promo', code);
+      toast(PROMOS[code].label + ' applied', 'ok');
+      render();
+    });
+    $('#promoInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#applyPromo').click(); });
+  }
+
+  function renderSuggest() {
+    const inCart = Cart.list().map(l => l.id);
+    const picks = Products.all()
+      .filter(p => !inCart.includes(p.id) && (p.cat === 'pastry' || p.cat === 'beans'))
+      .slice(0, 4);
+    const box = $('#suggest');
+    box.innerHTML = picks.map(productCard).join('');
+    bindCardActions(box);
+  }
+
+  render();
+});
+</script>
+</body>
+</html>
