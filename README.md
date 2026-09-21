@@ -1,5 +1,7 @@
 # Brew &amp; Blue — Coffee Shop Website
 
+**Live demo: https://brew-and-blue-coffee.vercel.app**
+
 A complete, responsive coffee shop website built with **HTML5, CSS3 and vanilla JavaScript**.
 No frameworks, no build step, no backend — every page opens straight in a browser.
 
@@ -21,6 +23,13 @@ python -m http.server 5510
 
 Then open <http://localhost:5510>. A server avoids browser restrictions on `file://`
 URLs and is closer to how the site would really be hosted.
+
+**Option C — the hosted version**
+
+The site is deployed on Vercel at <https://brew-and-blue-coffee.vercel.app>.
+It is a static deployment — no build command, the files are served as-is.
+`.vercelignore` keeps secrets and local tooling out of the upload, because on a
+static host every uploaded file is publicly downloadable.
 
 ### Demo accounts
 
