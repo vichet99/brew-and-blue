@@ -27,6 +27,8 @@ URLs and is closer to how the site would really be hosted.
 **Option C — the hosted version**
 
 The site is deployed on Vercel at <https://brew-and-blue-coffee.vercel.app>.
+The Vercel project is connected to this GitHub repository, so **every push to
+`main` deploys to production automatically** — there is nothing to run by hand.
 It is a static deployment — no build command, the files are served as-is.
 `.vercelignore` keeps secrets and local tooling out of the upload, because on a
 static host every uploaded file is publicly downloadable.
