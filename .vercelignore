@@ -1,0 +1,8 @@
+# Never upload secrets or local tooling state.
+# On a static site every uploaded file is publicly downloadable.
+.env*
+.vercel
+.claude
+.git
+.gitignore
+.gitattributes
