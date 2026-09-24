@@ -7,6 +7,9 @@ No frameworks, no build step, no backend — every page opens straight in a brow
 
 Brand palette: 🔵 **Blue** `#14507E` · 🟤 **Brown** `#6B4226` · 🟡 **Yellow** `#F5B301`
 
+Also in this repository: [`me-system/`](me-system/README.md), the **Monitoring and Evaluation System** prototype
+(live at https://monitoring-evaluation-system.vercel.app).
+
 ---
 
 ## 1. Running the site

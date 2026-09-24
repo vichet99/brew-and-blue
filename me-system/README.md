@@ -4,6 +4,8 @@ A clickable UI prototype (milestone **M1**) for a policy / programme / project
 monitoring and evaluation platform, built from the *ME Platform Blueprint v1*
 (specification, engineering contracts, playbook, sources and decisions, 24 Sep 2026).
 
+**Live demo: https://monitoring-evaluation-system.vercel.app**
+
 > **Prototype:** all names, figures and dates are fictional test data. Actions
 > (saving drafts, submitting, approving, publishing) are simulated in the browser
 > and are **not** saved to a server. Real persistence, sign-in and access control
@@ -95,3 +97,5 @@ me-system/
 
 Deployed on Vercel as a separate project (`monitoring-evaluation-system`) whose **root directory is `me-system`**,
 so it does not affect the Brew & Blue site in the same repository.
+Production URL: https://monitoring-evaluation-system.vercel.app. Vercel production follows the `main` branch;
+until this branch is merged, push previews build automatically and production is redeployed from the branch by hand.
