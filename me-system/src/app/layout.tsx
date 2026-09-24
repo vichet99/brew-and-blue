@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import { ResponsiveTables } from "@/components/ResponsiveTables";
 import { MobileNav, SideNav } from "@/components/SideNav";
 
 export const metadata: Metadata = {
@@ -37,7 +38,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="brand">
               <Mark />
               <span>
-                Monitoring and Evaluation System
+                <span className="brand__full">Monitoring and Evaluation System</span>
+                <span className="brand__short" aria-hidden="true">M&amp;E System</span>
                 <span className="brand__sub">Policy · Programme · Project</span>
               </span>
             </Link>
@@ -45,22 +47,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span className="workspace-pill">Example: National Cashew Policy 2022–2027</span>
               <Link href="/signin">Sign out</Link>
             </div>
+            <MobileNav />
           </div>
         </header>
         <div className="proto-banner" role="note">
           <div className="proto-banner__inner">
             <strong>PROTOTYPE</strong>
+            <span className="banner-short">
+              Example data from MoC&apos;s Cashew M&amp;E; actions are simulated. <Link href="/admin#sources">Details</Link>
+            </span>
+            <span className="banner-full">
             Example workspace built from MoC&apos;s Cashew Policy M&amp;E workbooks (reporting year 2025) and the MTR final draft. Records marked
             &ldquo;Illustrative&rdquo; are invented for the demo. Actions are simulated in your browser and not saved.{" "}
             <Link href="/sitemap">Sitemap</Link> · <Link href="/admin#sources">Data sources</Link>.
+            </span>
           </div>
         </div>
-        <MobileNav />
         <div className="layout">
           <SideNav />
           <main id="main" className="main" tabIndex={-1}>
             {children}
           </main>
+          <ResponsiveTables />
         </div>
         <footer className="site-footer">
           <div className="site-footer__inner">

@@ -66,15 +66,14 @@ export default function ProgressReportPage() {
             <table>
               <caption>{clusterLabel[c]} actions: MTR progress summary and 2025 result</caption>
               <thead>
-                <tr><th scope="col" className="num">#</th><th scope="col">Action and progress summary (MTR)</th><th scope="col">Responsible</th><th scope="col">MTR</th><th scope="col" className="num">2025 %</th><th scope="col">2025 status</th></tr>
+                <tr><th scope="col">Action and progress summary (MTR)</th><th scope="col">Responsible</th><th scope="col">MTR</th><th scope="col" className="num">2025 %</th><th scope="col">2025 status</th></tr>
               </thead>
               <tbody>
                 {actions.filter((a) => a.cluster === c).map((a) => {
                   const s = actionStatus(a);
                   return (
                     <tr key={a.code}>
-                      <td className="num"><Link href={`/projects/${a.code}`}>{a.no}</Link></td>
-                      <td><div className="small" style={{ fontWeight: 600 }}>{a.title.length > 140 ? a.title.slice(0, 140) + "…" : a.title}</div><div className="small">{a.mtrSummary}</div></td>
+                      <td><div className="small" style={{ fontWeight: 600 }}><Link href={`/projects/${a.code}`}>Action {a.no}</Link>: {a.title.length > 140 ? a.title.slice(0, 140) + "…" : a.title}</div><div className="small">{a.mtrSummary}</div></td>
                       <td className="small">{a.responsible || a.ministries.map(ministryShort).join(", ")}</td>
                       <td className="small nowrap">{a.mtrProgress}</td>
                       <td className="num">{pct(a.y2025.avgCappedPct)}</td>

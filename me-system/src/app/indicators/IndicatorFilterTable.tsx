@@ -62,15 +62,14 @@ export function IndicatorFilterTable({ rows }: { rows: Row[] }) {
           <caption>Action indicators, reporting year 2025</caption>
           <thead>
             <tr>
-              <th scope="col">Code</th><th scope="col">Indicator</th><th scope="col" className="num">Action</th><th scope="col">Ministry</th>
+              <th scope="col">Indicator</th><th scope="col" className="num">Action</th><th scope="col">Ministry</th>
               <th scope="col">2027 target</th><th scope="col">Calculation</th><th scope="col" className="num">2025 %</th><th scope="col">Status</th>
             </tr>
           </thead>
           <tbody>
             {shown.map((r) => (
               <tr key={r.code}>
-                <td className="nowrap"><Link href={`/indicators/${r.code}`}>{r.code}</Link></td>
-                <td className="small">{r.label.length > 110 ? r.label.slice(0, 110) + "…" : r.label}</td>
+                <td><Link href={`/indicators/${r.code}`} className="nowrap">{r.code}</Link><div className="small">{r.label.length > 110 ? r.label.slice(0, 110) + "…" : r.label}</div></td>
                 <td className="num"><Link href={`/projects/ACT-${String(r.action).padStart(2, "0")}`}>{r.action}</Link></td>
                 <td>{r.ministry}</td>
                 <td className="small">{r.target}</td>

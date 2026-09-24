@@ -74,7 +74,7 @@ export function OutcomeDashboard({ indicators, markets }: { indicators: O[]; mar
           <caption>Outcome indicators, {year} against the 2022 baseline</caption>
           <thead>
             <tr>
-              <th scope="col">Code</th><th scope="col">Indicator</th><th scope="col">Unit</th><th scope="col" className="num">2022</th>
+              <th scope="col">Indicator</th><th scope="col">Unit</th><th scope="col" className="num">2022</th>
               <th scope="col" className="num">{year}</th><th scope="col" className="num">Change</th><th scope="col">Trend</th><th scope="col">Better when</th><th scope="col">Area</th>
             </tr>
           </thead>
@@ -83,8 +83,7 @@ export function OutcomeDashboard({ indicators, markets }: { indicators: O[]; mar
               const tr = trend(o, year);
               return (
                 <tr key={o.code}>
-                  <td>{o.code}</td>
-                  <td><Link href={`/indicators/${o.code}`}>{o.title}</Link>{o.testData && <div><StatusTag status="Test data" /></div>}</td>
+                  <td><Link href={`/indicators/${o.code}`}>{o.code} · {o.title}</Link>{o.testData && <div><StatusTag status="Test data" /></div>}</td>
                   <td>{o.unit}</td>
                   <td className="num">{formatByUnit(o.unit, o.series["2022"])}</td>
                   <td className="num">{formatByUnit(o.unit, o.series[String(year)])}</td>

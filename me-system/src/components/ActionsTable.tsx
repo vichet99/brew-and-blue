@@ -78,7 +78,6 @@ export function ActionsTable({ rows, ministryOptions }: { rows: ActionRow[]; min
             <caption>Policy actions, reporting year 2025</caption>
             <thead>
               <tr>
-                <th scope="col" className="num">#</th>
                 <th scope="col">Action</th>
                 <th scope="col">Cluster</th>
                 <th scope="col">Ministries</th>
@@ -90,8 +89,7 @@ export function ActionsTable({ rows, ministryOptions }: { rows: ActionRow[]; min
             <tbody>
               {shown.map((r) => (
                 <tr key={r.code}>
-                  <td className="num">{r.no}</td>
-                  <td><Link href={`/projects/${r.code}`}>{r.title.length > 120 ? r.title.slice(0, 120) + "…" : r.title}</Link><div className="small muted">{r.indicators} indicator{r.indicators > 1 ? "s" : ""}</div></td>
+                  <td><strong className="nowrap">{r.no}.</strong> <Link href={`/projects/${r.code}`}>{r.title.length > 120 ? r.title.slice(0, 120) + "…" : r.title}</Link><div className="small muted">{r.indicators} indicator{r.indicators > 1 ? "s" : ""}</div></td>
                   <td><span className={`chip chip--${r.cluster}`}>{r.clusterLabel}</span></td>
                   <td className="small">{r.ministries.map((m, i) => (i === 0 ? <strong key={m}>{m}</strong> : <span key={m}>, {m}</span>))}</td>
                   <td className="num">{r.pct === null ? "—" : `${Math.round(r.pct)}%`}</td>

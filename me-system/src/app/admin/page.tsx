@@ -29,11 +29,11 @@ export default function AdminPage() {
 
       <h2>Organisations ({ministries.length + 1})</h2>
       <Table caption="Ministries and institutions">
-        <thead><tr><th scope="col">Code</th><th scope="col">Name</th><th scope="col">ខ្មែរ</th><th scope="col" className="num">Indicators</th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Code</th><th scope="col">ខ្មែរ</th><th scope="col" className="num">Indicators</th></tr></thead>
         <tbody>
-          <tr><td>moc-sec</td><td>{policy.secretariat}</td><td /><td className="num">—</td></tr>
+          <tr><td>{policy.secretariat}</td><td>moc-sec</td><td /><td className="num">—</td></tr>
           {ministries.map((m) => (
-            <tr key={m.code}><td><code>{m.code}</code></td><td>{m.name}</td><td className="km" lang="km">{m.nameKm}</td><td className="num">{indicatorsOfMinistry(m.code).length}</td></tr>
+            <tr key={m.code}><td>{m.name}</td><td><code>{m.code}</code></td><td className="km" lang="km">{m.nameKm}</td><td className="num">{indicatorsOfMinistry(m.code).length}</td></tr>
           ))}
         </tbody>
       </Table>

@@ -30,15 +30,14 @@ export default function IndicatorsPage() {
       <Table caption="Outcome indicators: 2022 baseline and latest value">
         <thead>
           <tr>
-            <th scope="col">Code</th><th scope="col">Indicator</th><th scope="col">Area</th><th scope="col">Unit</th><th scope="col">Better when</th>
+            <th scope="col">Indicator</th><th scope="col">Area</th><th scope="col">Unit</th><th scope="col">Better when</th>
             <th scope="col" className="num">2022</th><th scope="col" className="num">2025</th><th scope="col">Trend</th><th scope="col">Source</th>
           </tr>
         </thead>
         <tbody>
           {outcomeIndicators.map((o) => (
             <tr key={o.code}>
-              <td>{o.code}</td>
-              <td><Link href={`/indicators/${o.code}`}>{o.title}</Link> {o.testData && <StatusTag status="Test data" />}</td>
+              <td><Link href={`/indicators/${o.code}`}>{o.code} · {o.title}</Link> {o.testData && <StatusTag status="Test data" />}</td>
               <td>{o.area}</td>
               <td>{o.unit}</td>
               <td>{o.direction === "increase" ? "Higher" : "Lower"}</td>

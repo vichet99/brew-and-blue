@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { primaryNav, secondaryNav } from "@/lib/sitemap";
 
 function isCurrent(pathname: string, match: string[]) {
@@ -48,14 +49,36 @@ export function SideNav() {
   );
 }
 
+/** Menu button for small screens; the panel drops down under the header. */
 export function MobileNav() {
   const pathname = usePathname() ?? "/";
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
-    <details className="mobile-nav" key={pathname}>
-      <summary>Menu</summary>
-      <nav className="sidenav" aria-label="Main (mobile)">
-        <NavLists pathname={pathname} />
-      </nav>
-    </details>
+    <>
+      <button
+        type="button"
+        className="menu-btn"
+        aria-expanded={open}
+        aria-controls="mobile-menu"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="menu-btn__icon" aria-hidden="true">{open ? "✕" : "☰"}</span>
+        Menu
+      </button>
+      <div id="mobile-menu" className="mobile-menu" hidden={!open}>
+        <nav className="sidenav" aria-label="Main (mobile)">
+          <NavLists pathname={pathname} />
+        </nav>
+      </div>
+    </>
   );
 }
