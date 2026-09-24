@@ -69,6 +69,17 @@ const statusMap: Record<string, { tone: Tone; icon: IconName }> = {
   Stale: { tone: "orange", icon: "stale" },
   closed: { tone: "grey", icon: "minus" },
   archived: { tone: "grey", icon: "minus" },
+  "Fully Achieved": { tone: "green", icon: "check" },
+  "Largely Achieved": { tone: "orange", icon: "clock" },
+  "Limited Progress": { tone: "red", icon: "alert" },
+  Improving: { tone: "green", icon: "check" },
+  Declining: { tone: "red", icon: "alert" },
+  "No change": { tone: "grey", icon: "minus" },
+  Upcoming: { tone: "grey", icon: "clock" },
+  Endorsed: { tone: "green", icon: "check" },
+  "Final draft": { tone: "blue", icon: "edit" },
+  Illustrative: { tone: "yellow", icon: "alert" },
+  "Test data": { tone: "yellow", icon: "alert" },
 };
 
 /** Status is shown with text and an icon, never colour alone (spec 10.1). */

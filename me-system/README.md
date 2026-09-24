@@ -6,10 +6,12 @@ monitoring and evaluation platform, built from the *ME Platform Blueprint v1*
 
 **Live demo: https://monitoring-evaluation-system.vercel.app**
 
-> **Prototype:** all names, figures and dates are fictional test data. Actions
-> (saving drafts, submitting, approving, publishing) are simulated in the browser
-> and are **not** saved to a server. Real persistence, sign-in and access control
-> come in milestone M2.
+> **Prototype with an example workspace:** the demo is filled with the
+> **National Cashew Policy 2022–2027** monitoring system (Ministry of Commerce),
+> built from its M&E workbooks, Kobo form, manual and mid-term review. Records
+> marked *Illustrative* are invented to show the workflow. Actions (saving,
+> submitting, approving) are simulated in the browser and **not** saved to a
+> server. Real persistence, sign-in and access control come in milestone M2.
 
 ## Run it
 
@@ -17,34 +19,77 @@ monitoring and evaluation platform, built from the *ME Platform Blueprint v1*
 cd me-system
 npm install
 npm run dev        # http://localhost:3000
-npm test           # worked calculation examples from spec section 6.3
-npm run build      # production build (all pages are static)
+npm test           # spec 6.3 formula examples + checks against the Cashew workbooks
+npm run build      # production build (all 226 pages are static)
 ```
 
 Requires Node.js 22+. Stack: Next.js 16 (App Router), React 19, TypeScript, plain CSS tokens.
 No UI framework, no database yet.
 
+## How the Cashew example maps onto the platform
+
+| Platform level | Cashew example | Count |
+|---|---|---|
+| Policy | National Cashew Policy 2022–2027 (3 goals, 3 action clusters) | 1 |
+| Programme | One per ministry / institution (MAFF, MoC, MISTI, MPWT …) | 17 |
+| Project | One per policy action; the lead ministry owns it, joint ministries contribute | 44 |
+| Outcome indicators | Production, quality, processing, markets, socio-economic; 2022 baseline, no targets | 13 |
+| Action indicators | 2027 target, 2025 value, % of target, status by year threshold | 108 |
+| Kobo forms | CASHEW INDICATOR REPORT (17 ministry sections, EN/ខ្មែរ) and the processor survey | 2 |
+| Previous period | Reporting year 2025 results and the MTR (final draft, 25 May 2026) | — |
+
+Status rule (workbook sheet 10_STATUS_THRESHOLDS): fully achieved at 100% of the 2027
+target; largely achieved from 40% (2025), 70% (2026), 90% (2027). The Policy Actions
+Dashboard can re-grade the 2025 values with the 2026 or 2027 rule.
+
 ## Sitemap
 
-Organised by the level of the results chain a person manages. Each level answers one question.
-The live version is at `/sitemap`.
+Organised by the level a person manages. Each level answers one question. Live version: `/sitemap`.
 
-| Level | Question it answers | Pages (route · screen ID) |
+| Level | Question it answers | Main pages |
 |---|---|---|
-| **1 Policy** | Are policy outcomes progressing, and where is evidence missing? | Policies and programmes `/policies` · UI-03 · Policy detail `/policies/POL-01` · UI-03 · Policy dashboard `/reports` · UI-11 · Evaluation register *(R3)* |
-| **2 Programme** | Are results on track against targets, and who owes a report? | Programme detail `/programmes/PRG-A` · UI-03 · Results framework `/results` · UI-05 · Indicator catalogue `/indicators` · UI-06 · Reports and snapshots `/reports` · UI-11 |
-| **3 Project** | What is due from us, and what must we submit or correct? | Projects `/projects` · UI-04 · Project overview `/projects/PRJ-A1` · UI-04 · Forms and designer `/forms` · UI-07 · Collect data `/collect/FRM-ACT` · UI-08 · Offline queue *(R3, UI-13)* |
-| **4 Review and admin** | Is each figure traceable, reviewed and controlled? | Overview `/` · UI-02 · Submissions `/submissions` · UI-09 · Reviews `/reviews` · UI-10 · Administration `/admin` · UI-12 · Sign in `/signin` · UI-01 · Brand guide `/brand` · Kobo integration *(R2)* |
+| **1 Policy** | Is the policy reaching its three goals? | Policy overview `/policies/NCP-2022` · Outcome dashboard `/reports/outcome` · Results framework `/results` · Progress report 2025 and MTR `/reports/progress-2025` |
+| **2 Programme (ministry)** | Is each ministry delivering its actions and indicators? | Ministry programmes `/programmes` · Ministry detail `/programmes/maff` · Policy Actions Dashboard `/reports/actions` |
+| **3 Project (action)** | What was delivered for this action, and what is missing? | Policy actions `/projects` · Action detail `/projects/ACT-02` · Indicator catalogue `/indicators` |
+| **4 Collect, review, administer** | Are numbers collected on time, checked and traceable? | Overview `/` · Kobo forms `/forms` · Ministry report form `/collect/cashew-indicator-report` · Submissions `/submissions` · Reviews `/reviews` · Administration `/admin` |
 
 ## Click-through journey to try
 
-1. **Overview** `/`: tasks first (reviews waiting, returned, overdue, due).
-2. **Collect data** `/collect/FRM-ACT`: submit empty to see the error summary; answer *Yes* to feedback, then
-   switch to *No* to see the “this will clear an answer” warning; save a draft; attach a file; submit to get a receipt.
-3. **Review** `/reviews/SUB-1061`: see the r1 → r2 change; try approving as the original submitter (blocked);
-   return without a reason (blocked); return with a reason.
-4. **Indicator** `/indicators/IND-03`: pooled percentage (50 of 150 = 33.33 %, not the average of 60 % and 20 %).
-5. **Form designer** `/forms/FRM-ACT`: reorder with ↑ ↓, type an invalid ID, run publish checks.
+1. **Policy Actions Dashboard** `/reports/actions`: 44 actions, 11 / 27 / 6, 66% completion. Switch the threshold
+   to 2027: the same values give 11 / 1 / 32.
+2. **Ministry report form** `/collect/cashew-indicator-report?ministry=maff`: MAFF's 15 indicators; type a value and
+   the % of target and status appear; switch to ខ្មែរ.
+3. **Review** `/reviews/RY2026-MRD` *(illustrative)*: approval is blocked until the four MoC verification checks are ticked.
+4. **Action detail** `/projects/ACT-02`: MTR summary, target, 2025 value, and the exact Kobo question and formula.
+5. **Outcome dashboard** `/reports/outcome`: change the year; nut count and top-destination share improve when they fall.
+6. **Progress report 2025** `/reports/progress-2025`: goal progress, all 44 action summaries, OECD-DAC findings, recommendations.
+
+## Example data: sources and caveats
+
+`src/data/cashew.json` is generated by `scripts/build_cashew_data.py` from the source files
+(not committed). It contains aggregates, indicator definitions, form questions and report
+text only; no respondent names or phone numbers.
+
+```bash
+pip install openpyxl python-docx
+python3 scripts/build_cashew_data.py /path/to/folder-with-source-files
+```
+
+| Source file | Used for |
+|---|---|
+| Cashew_Dashboard & Database_Action Level_v5 (15 May 2026) | 108 indicators, 2025 values, %, status, thresholds |
+| Outcome_Dashboard_v12 | 13 outcome indicators 2022–2025, export markets, production, income |
+| CASHEW_INDICATOR_REPORT Kobo XLSForm v10 (12 May 2026) | Questions in English and Khmer, fields, constraints, calculations |
+| Cashew Policy Monitoring System Manual v3 | Roles, calendar, verification rules, data-quality ranges |
+| Cashew MTR Report, final draft (25 May 2026) | Action titles and progress summaries, goal progress, findings, recommendations |
+
+Things to know (also shown on the site):
+
+- Clusters follow the MTR (actions 1–17, 18–28, 29–44). Workbook v5 groups 1–16 / 17–32 / 33–44, so its pillar counts differ.
+- The MTR counts 15 / 23 / 6 with a 50% cut-off (mid-2025); the workbook's 2025 rule (40%) gives 11 / 27 / 6.
+- The 2025 workbook records no evidence files and "N/A" narratives, so narratives shown here come from the MTR.
+- Outcome indicators Q1, Q2, PR1, PR2, S2, S3 are based on processor-survey test rows.
+- Reporting year 2026 submissions (MRD, NBC, MISTI) are illustrative.
 
 ## Branding
 
@@ -77,21 +122,25 @@ Sources: [GOV.UK Brand Guidelines – colour](https://brand.design-system.servic
 
 ```
 me-system/
-├── src/app/            one folder per route (see sitemap)
-├── src/components/     layout nav, status tags, indicator cards, tabs
-├── src/lib/data.ts     fictional seed data (policy P1, programmes A/B, projects A1/A2/B1)
-├── src/lib/calc.ts     indicator calculations: never fabricate zero, never clip progress
-├── src/lib/sitemap.ts  single source for navigation and the /sitemap page
-└── tests/calc.test.ts  worked examples from spec 6.3 and playbook 23.2
+├── scripts/build_cashew_data.py   builds src/data/cashew.json from the source files
+├── src/data/cashew.json           generated example data
+├── src/lib/cashew.ts              typed access, status and trend rules
+├── src/lib/rules.ts               pure scoring rules (shared with client forms)
+├── src/lib/workflow.ts            submissions, quality flags, processor survey form
+├── src/lib/calc.ts                generic indicator calculations (spec section 6)
+├── src/lib/sitemap.ts             navigation and /sitemap
+├── src/components/                layout, status tags, charts, tables, Kobo question viewer
+├── src/app/                       one folder per route
+└── tests/                         calc.test.ts, cashew.test.ts (17 tests)
 ```
 
-## What is real and what is mocked
+## What is real and what is simulated
 
-| Implemented and verified | Mocked (simulated in browser) | Not yet built |
+| Implemented and verified | Simulated in the browser | Not built yet |
 |---|---|---|
-| Screens UI-01 to UI-12, responsive at 360 / 768 / 1440 px with no page-level horizontal scroll | Sign-in, draft saving, submission receipt, evidence upload and scan | Database, authentication, tenant isolation (M2) |
-| Calculation rules (11 unit tests passing) | Review return / approve / reject, form publishing, report snapshots | Persistence of policies, indicators, targets (M3) |
-| Keyboard tabs, button reordering, status tags with icon + text | CSV export of fictional submissions (runs locally) | Real forms and review workflow (M4), dashboards from approved data (M5) |
+| All screens, responsive at 360 / 768 / 1440 px with no page-level horizontal scroll | Draft saving, submission receipts, file uploads | Database, sign-in, access control (M2) |
+| Status, completion and Kobo % rules, tested against the workbook (11 / 27 / 6, 66%) | Review approve / return / reject, form publishing, report drafts | Kobo import connector (R2) |
+| Dashboards with hover tooltips, legends and data-table alternatives | CSV export (runs locally on the shown rows) | Offline collection and evaluation register (R3) |
 
 ## Deployment
 

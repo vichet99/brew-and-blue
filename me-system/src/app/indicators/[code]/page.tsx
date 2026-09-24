@@ -1,168 +1,149 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SeriesChart, progressText } from "@/components/IndicatorCard";
-import { Breadcrumbs, fmtDate, fmtNum, LevelTag, Meta, PageHead, StatusTag, Table } from "@/components/ui";
-import { achievement, formatResult, pooledPercentage } from "@/lib/calc";
-import { getIndicator, getProject, indicators, orgName } from "@/lib/data";
+import { MiniLine } from "@/components/charts";
+import { KoboQuestions } from "@/components/KoboQuestions";
+import { Breadcrumbs, LevelTag, Meta, PageHead, StatusTag, Table } from "@/components/ui";
+import {
+  actionByNo,
+  actionIndicators,
+  firstValueYear,
+  formatOutcome,
+  formatValue,
+  getActionIndicator,
+  getMinistry,
+  getOutcomeIndicator,
+  OUTCOME_YEARS,
+  outcomeIndicators,
+  outcomeTrend,
+  pct,
+  statusFor,
+  thresholds,
+  type ActionIndicator,
+  type OutcomeIndicator,
+} from "@/lib/cashew";
 
 export function generateStaticParams() {
-  return indicators.map((i) => ({ code: i.code }));
+  return [...outcomeIndicators.map((o) => ({ code: o.code })), ...actionIndicators.map((i) => ({ code: i.code }))];
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
   const { code } = await params;
-  return { title: getIndicator(code)?.title ?? "Indicator" };
+  return { title: getOutcomeIndicator(code)?.title ?? getActionIndicator(code)?.code ?? "Indicator" };
 }
 
-export default async function IndicatorPage({ params }: { params: Promise<{ code: string }> }) {
-  const { code } = await params;
-  const ind = getIndicator(code);
-  if (!ind) notFound();
-  const project = getProject(ind.project);
-  const approved = ind.observations.filter((o) => o.status === "Approved");
-  const pooled =
-    ind.method === "percentage"
-      ? pooledPercentage(approved.map((o) => ({ numerator: o.numerator ?? null, denominator: o.denominator ?? null })))
-      : null;
+const methodText: Record<string, string> = {
+  count_to_target: "Count against the 2027 target: % = round(value ÷ target × 100).",
+  percent_complete: "Percent complete reported directly; values above 100 are capped at 100.",
+  milestone: "Milestone: Completed = 100%, In progress = 50%, Not yet started = 0%.",
+  inverse_time: "Time indicator (lower is better): % = round(target ÷ value × 100).",
+};
 
+function OutcomeView({ o }: { o: OutcomeIndicator }) {
+  const t = outcomeTrend(o, 2025);
+  const first = firstValueYear(o);
   return (
     <>
-      <Breadcrumbs items={[{ label: "Indicators", href: "/indicators" }, { label: ind.code }]} />
-      <PageHead caption={`${ind.code} · version ${ind.version} · effective ${fmtDate(ind.effectiveFrom)}`} title={ind.title} />
+      <Breadcrumbs items={[{ label: "Indicators", href: "/indicators" }, { label: o.code }]} />
+      <PageHead caption={`${o.code} · Outcome indicator · ${o.area}`} title={o.title} />
       <Meta
         items={[
-          ["Level", <LevelTag key="l" level={ind.level} />],
-          ["Unit", ind.unit],
-          ["Direction", ind.direction === "increase" ? "Higher is better" : "Lower is better"],
-          ["Project", project ? <Link key="p" href={`/projects/${project.code}`}>{project.name}</Link> : ind.project],
+          ["Level", <LevelTag key="l" level="outcome" />],
+          ["Unit", o.unit],
+          ["Better when", o.direction === "increase" ? "Higher" : "Lower"],
+          ["Trend vs 2022", <StatusTag key="t" status={t.trend} />],
         ]}
       />
-      <p className="lead">{ind.definition}</p>
-
+      {o.testData && (
+        <div className="notice notice--warning">
+          <p><StatusTag status="Test data" /> The 2025 value comes from Kobo processor-survey rows that the outcome workbook marks as testing/demo data. Treat it as indicative only.</p>
+        </div>
+      )}
       <div className="two-col">
         <div>
-          <h2 style={{ marginTop: 0 }}>Series</h2>
-          {ind.method === "milestone" ? (
-            <Table caption="Milestone stages">
-              <thead>
-                <tr><th scope="col">Stage</th><th scope="col">Completion criteria</th><th scope="col">Status</th></tr>
-              </thead>
-              <tbody>
-                {ind.milestones?.map((m) => (
-                  <tr key={m.stage}>
-                    <td>{m.stage}</td>
-                    <td>{m.criteria}</td>
-                    <td>{m.done ? <StatusTag status="Completed" /> : <StatusTag status="Not started" label="Not yet" />}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          ) : (
-            <>
-              <SeriesChart ind={ind} />
-              <Table caption={`Observations and targets (${ind.unit})`}>
-                <thead>
-                  <tr>
-                    <th scope="col">Period</th>
-                    <th scope="col" className="num">Actual</th>
-                    {ind.method === "percentage" && <th scope="col" className="num">Numerator / denominator</th>}
-                    <th scope="col" className="num">Target</th>
-                    <th scope="col" className="num">Achievement</th>
-                    <th scope="col">State</th>
-                    <th scope="col">Source revisions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ind.observations.map((o) => (
-                    <tr key={o.period}>
-                      <td className="nowrap">{o.period}</td>
-                      <td className="num">{fmtNum(o.value)}</td>
-                      {ind.method === "percentage" && (
-                        <td className="num">{o.numerator !== undefined ? `${o.numerator} / ${o.denominator}` : "—"}</td>
-                      )}
-                      <td className="num">{fmtNum(o.target)}</td>
-                      <td className="num">{ind.direction === "decrease" ? "See progress" : formatResult(achievement(o.value, o.target))}</td>
-                      <td>
-                        <span className="btn-row">
-                          <StatusTag status={o.status} />
-                          {o.stale && <StatusTag status="Stale" />}
-                        </span>
-                      </td>
-                      <td className="small">{o.sources?.join(", ") ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </>
-          )}
-
-          <div className="notice">
-            <p>
-              <strong>{progressText(ind).label}:</strong> {progressText(ind).text}
-            </p>
-            {pooled && (
-              <p>
-                <strong>Year to date (pooled):</strong> {formatResult(pooled, 2)}
-                {pooled.ok && pooled.note ? ` — ${pooled.note} graded lots. Not the average of the quarterly percentages.` : ""}
-              </p>
-            )}
-            {ind.method === "latest_snapshot" && (
-              <p>Cumulative indicator: the year-to-date value is the latest approved snapshot, not the sum of quarters.</p>
-            )}
-            {ind.method === "weighted_mean" && ind.baseline.value !== null && (
-              <p>
-                Progress = (baseline − actual) ÷ (baseline − target) × 100. Values above 100% or below 0% are shown as they are, never clipped.
-              </p>
-            )}
-            {ind.observations.some((o) => o.stale) && (
-              <p>
-                <StatusTag status="Stale" /> A source for an approved value was corrected. The last approved value stays visible until the recalculated
-                value is approved.
-              </p>
-            )}
-          </div>
+          <MiniLine title={o.title} unit={o.unit} highlight={2025} points={OUTCOME_YEARS.map((y) => ({ x: y, y: o.series[String(y)] }))} />
+          <Table caption={`${o.title} by year (${o.unit})`}>
+            <thead><tr><th scope="col">Year</th><th scope="col" className="num">Value</th><th scope="col">Note</th></tr></thead>
+            <tbody>
+              {OUTCOME_YEARS.map((y) => (
+                <tr key={y}>
+                  <td>{y}{y === 2022 ? " (baseline)" : ""}</td>
+                  <td className="num">{formatOutcome(o, o.series[String(y)])}</td>
+                  <td className="small muted">{o.series[String(y)] === null ? "Not reported yet (blank is not zero)" : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+          <p>
+            {t.trend === "No data"
+              ? `No 2022 baseline${first ? `; first value ${first}` : ""}. Trend cannot be judged yet.`
+              : `Change 2022 → 2025: ${formatOutcome(o, t.change!)}${t.pctChange !== null ? ` (${t.pctChange > 0 ? "+" : ""}${t.pctChange.toFixed(1)}%)` : ""}.`}
+          </p>
         </div>
-
         <aside>
-          <h2 style={{ marginTop: 0 }}>Definition (v{ind.version})</h2>
+          <h2 style={{ marginTop: 0 }}>Definition</h2>
           <dl className="small">
             {[
-              ["Method", ind.method.replace("_", " ")],
-              ["Combine locations", ind.spatialRule],
-              ["Combine periods", ind.temporalRule],
-              ["Frequency", ind.frequency],
-              ["Data source", ind.source],
-              ["Collection", ind.collection],
-              ["Responsible", orgName(ind.responsible)],
-              ["Reviewer", ind.reviewer],
-              ["Disaggregation", ind.disaggregation.join("; ")],
-              ["Evidence required", ind.evidence],
-              ["Limitations", ind.limitations],
+              ["Formula", o.definition],
+              ["Note", o.note],
+              ["Frequency", o.frequency],
+              ["Disaggregation", o.disaggregation],
+              ["Primary reporter", o.source],
+              ["Data tool", o.tool === "Kobo" ? "Kobo Processor Survey" : "Administrative data"],
+              ["Targets", "None: monitoring against the 2022 baseline"],
             ].map(([k, v]) => (
-              <div key={k} style={{ marginBottom: 8 }}>
-                <dt style={{ fontWeight: 700 }}>{k}</dt>
-                <dd style={{ margin: 0 }}>{v}</dd>
-              </div>
+              <div key={k} style={{ marginBottom: 8 }}><dt style={{ fontWeight: 700 }}>{k}</dt><dd style={{ margin: 0 }}>{v}</dd></div>
             ))}
           </dl>
-          <h3>Baseline</h3>
-          {ind.baseline.value === null ? (
-            <p className="small">
-              <StatusTag status="No data" label="Unknown" /> {ind.baseline.missingReason}. Unknown is not zero.
-            </p>
-          ) : (
-            <p className="small">
-              {fmtNum(ind.baseline.value, ind.unit)} ({ind.baseline.period}). Source: {ind.baseline.source}
-            </p>
-          )}
-          <h3>Version history</h3>
-          <ul className="small">
-            <li>v{ind.version} effective {fmtDate(ind.effectiveFrom)} (current)</li>
-            {ind.version > 1 && <li>v1 — counted certificates issued, not valid certificates held. Historic reports keep v1.</li>}
-          </ul>
         </aside>
       </div>
     </>
   );
 }
+
+function ActionIndicatorView({ i }: { i: ActionIndicator }) {
+  const a = actionByNo(i.action)!;
+  const m = getMinistry(i.ministry)!;
+  return (
+    <>
+      <Breadcrumbs items={[{ label: "Indicators", href: "/indicators" }, { label: `Action ${a.no}`, href: `/projects/${a.code}` }, { label: i.code }]} />
+      <PageHead caption={`${i.code} (${i.id}) · Action indicator · Action ${a.no}`} title={i.label} />
+      <p className="km muted" lang="km">{i.labelKm}</p>
+      <Meta
+        items={[
+          ["Reported by", <Link key="m" href={`/programmes/${m.code}`}>{m.name}</Link>],
+          ["2027 target", i.targetText],
+          ["2025 value", formatValue(i)],
+          ["2025 status", i.y2025.status ? <StatusTag key="s" status={i.y2025.status} /> : "No data"],
+        ]}
+      />
+      <h2>How the % is calculated</h2>
+      <p>{methodText[i.method]} In 2025 this gave <strong>{pct(i.y2025.actualPct)}</strong>{(i.y2025.actualPct ?? 0) > 100 ? " (above target; 100% is used for status)" : ""}.</p>
+      <Table caption="Status this value would get in each year">
+        <thead><tr><th scope="col">Year</th><th scope="col">Largely achieved from</th><th scope="col">Fully achieved from</th><th scope="col">Status of the 2025 value</th></tr></thead>
+        <tbody>
+          {thresholds.filter((t) => t.year <= 2027).map((t) => {
+            const s = statusFor(i.y2025.cappedPct, t.year);
+            return (
+              <tr key={t.year}>
+                <td>{t.year}</td><td>{t.largely}%</td><td>{t.fully}%</td><td>{s ? <StatusTag status={s} /> : "No data"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+      <h2>Kobo question</h2>
+      <KoboQuestions indicators={[i]} />
+    </>
+  );
+}
+
+export default async function IndicatorPage({ params }: { params: Promise<{ code: string }> }) {
+  const { code } = await params;
+  const o = getOutcomeIndicator(code);
+  if (o) return <OutcomeView o={o} />;
+  const i = getActionIndicator(code);
+  if (i) return <ActionIndicatorView i={i} />;
+  notFound();
+}
+

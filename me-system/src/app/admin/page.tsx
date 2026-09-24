@@ -1,68 +1,69 @@
 import type { Metadata } from "next";
-import { PageHead, StatusTag, Table } from "@/components/ui";
-import { auditEvents, members, orgName, organisations } from "@/lib/data";
+import { PageHead, Table } from "@/components/ui";
+import { dataNotes, indicatorsOfMinistry, ministries, policy, roles, thresholds } from "@/lib/cashew";
 
 export const metadata: Metadata = { title: "Administration" };
+
+const audit = [
+  { at: "2026-05-27", actor: "M&E Secretariat", action: "report.published", resource: "Policy Actions Dashboard, RY2025" },
+  { at: "2026-05-11", actor: "M&E Secretariat", action: "submission.approved ×17", resource: "RY2025 ministry submissions" },
+  { at: "2026-05-11", actor: "M&E Secretariat", action: "submission.excluded", resource: "Admin test entry (excluded from official report)" },
+  { at: "2026-05-12", actor: "M&E Secretariat", action: "form.published", resource: "CASHEW INDICATOR REPORT v2026051204" },
+];
 
 export default function AdminPage() {
   return (
     <>
       <PageHead caption="UI-12 · Workspace administrator" title="Administration">
-        <button className="btn" type="button" disabled title="Invitations arrive with authentication in M2">Invite member (M2)</button>
+        <button className="btn" type="button" disabled title="Invitations arrive with authentication in M2">Invite focal point (M2)</button>
       </PageHead>
-      <p className="lead">
-        Access is granted per role and scope. Administrators manage access but have no automatic right to approve data.
-      </p>
+      <p className="lead">Access follows the roles in the monitoring manual. A focal point sees and reports only their own ministry&apos;s indicators.</p>
 
-      <h2>Members and grants</h2>
-      <Table caption="Members">
-        <thead>
-          <tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Organisation</th><th scope="col">Role</th><th scope="col">Scope</th><th scope="col">Status</th></tr>
-        </thead>
+      <h2>Roles</h2>
+      <Table caption="Roles and what they can do">
+        <thead><tr><th scope="col">Role</th><th scope="col">Duty (manual)</th><th scope="col">Platform role and scope</th></tr></thead>
         <tbody>
-          {members.map((m) => (
-            <tr key={m.email}>
-              <td>{m.name}</td>
-              <td>{m.email}</td>
-              <td>{orgName(m.org)}</td>
-              <td>{m.role}</td>
-              <td>{m.scope}</td>
-              <td><StatusTag status={m.status} /></td>
-            </tr>
+          {roles.map((r) => <tr key={r.role}><td><strong>{r.role}</strong></td><td>{r.duty}</td><td>{r.platformRole}</td></tr>)}
+        </tbody>
+      </Table>
+
+      <h2>Organisations ({ministries.length + 1})</h2>
+      <Table caption="Ministries and institutions">
+        <thead><tr><th scope="col">Code</th><th scope="col">Name</th><th scope="col">ខ្មែរ</th><th scope="col" className="num">Indicators</th></tr></thead>
+        <tbody>
+          <tr><td>moc-sec</td><td>{policy.secretariat}</td><td /><td className="num">—</td></tr>
+          {ministries.map((m) => (
+            <tr key={m.code}><td><code>{m.code}</code></td><td>{m.name}</td><td className="km" lang="km">{m.nameKm}</td><td className="num">{indicatorsOfMinistry(m.code).length}</td></tr>
           ))}
         </tbody>
       </Table>
-      <p className="small muted">Deactivating a member stops future access but keeps their authorship on historic records.</p>
+      <p className="small muted">Ministry codes are join keys for comparing years: rename a ministry, never change its code.</p>
 
-      <h2>Organisations</h2>
-      <Table caption="Organisations in this workspace">
-        <thead><tr><th scope="col">Code</th><th scope="col">Name</th><th scope="col">Type</th></tr></thead>
-        <tbody>
-          {organisations.map((o) => (
-            <tr key={o.code}><td>{o.code}</td><td>{o.name}</td><td>{o.type}</td></tr>
-          ))}
-        </tbody>
+      <h2>Status thresholds</h2>
+      <Table caption="Thresholds by reporting year (editable by MoC)">
+        <thead><tr><th scope="col">Year</th><th scope="col" className="num">Largely achieved from</th><th scope="col" className="num">Fully achieved from</th></tr></thead>
+        <tbody>{thresholds.map((t) => <tr key={t.year}><td>{t.year}</td><td className="num">{t.largely}%</td><td className="num">{t.fully}%</td></tr>)}</tbody>
       </Table>
 
       <h2>Audit trail</h2>
-      <Table caption="Recent audit events (append-only)">
-        <thead><tr><th scope="col">Time</th><th scope="col">Actor</th><th scope="col">Action</th><th scope="col">Resource</th></tr></thead>
-        <tbody>
-          {auditEvents.map((e) => (
-            <tr key={e.at + e.action}><td className="nowrap">{e.at}</td><td>{e.actor}</td><td><code>{e.action}</code></td><td>{e.resource}</td></tr>
-          ))}
-        </tbody>
+      <Table caption="Recent audit events (append-only; reconstructed from the workbook record)">
+        <thead><tr><th scope="col">Date</th><th scope="col">Actor</th><th scope="col">Action</th><th scope="col">Resource</th></tr></thead>
+        <tbody>{audit.map((e) => <tr key={e.action + e.at}><td className="nowrap">{e.at}</td><td>{e.actor}</td><td><code>{e.action}</code></td><td>{e.resource}</td></tr>)}</tbody>
       </Table>
 
-      <h2>Integration health</h2>
-      <div className="notice"><p>Kobo integration is planned for release R2. No connectors are configured.</p></div>
-
-      <h2>Pilot settings</h2>
+      <h2 id="sources">Data sources for this example</h2>
       <ul>
-        <li>Evidence: up to 5 files per submission, 10 MB each (configurable).</li>
-        <li>Self-approval: disabled.</li>
-        <li>Backups: database and evidence files backed up separately (to be configured in M6/M7).</li>
+        <li>Cashew Dashboard &amp; Database, Action Level, v5 (15 May 2026)</li>
+        <li>Outcome Dashboard v12</li>
+        <li>CASHEW INDICATOR REPORT, Kobo XLSForm v10 (12 May 2026)</li>
+        <li>Cashew Policy Monitoring System Manual v3 (May 2026)</li>
+        <li>Mid-Term Review report, final draft (25 May 2026)</li>
       </ul>
+      <p>
+        The site reads <code>src/data/cashew.json</code>, generated from these files by <code>scripts/build_cashew_data.py</code>. It holds
+        aggregates, indicator definitions, form questions and report text only; no respondent names or phone numbers.
+      </p>
+      <ul className="small">{dataNotes.map((n) => <li key={n}>{n}</li>)}</ul>
     </>
   );
 }

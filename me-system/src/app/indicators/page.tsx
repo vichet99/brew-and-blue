@@ -1,58 +1,58 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { progressText } from "@/components/IndicatorCard";
-import { LevelTag, PageHead, Table } from "@/components/ui";
-import { indicators, orgName } from "@/lib/data";
+import { PageHead, StatusTag, Table } from "@/components/ui";
+import { actionIndicators, formatOutcome, ministryShort, outcomeIndicators, outcomeTrend } from "@/lib/cashew";
+import { IndicatorFilterTable } from "./IndicatorFilterTable";
 
 export const metadata: Metadata = { title: "Indicators" };
 
-const methodLabel: Record<string, string> = {
-  count: "Count",
-  sum: "Sum",
-  percentage: "Percentage (pooled)",
-  weighted_mean: "Weighted mean",
-  latest_snapshot: "Latest snapshot",
-  milestone: "Milestone",
-};
-
 export default function IndicatorsPage() {
+  const rows = actionIndicators.map((i) => ({
+    code: i.code,
+    label: i.label,
+    action: i.action,
+    ministry: ministryShort(i.ministry),
+    target: i.targetText,
+    method: i.method,
+    value: i.y2025.value === null ? null : String(i.y2025.value),
+    pct: i.y2025.actualPct,
+    status: i.y2025.status,
+  }));
   return (
     <>
-      <PageHead caption="UI-06" title="Indicator catalogue">
-        <button className="btn btn--secondary" type="button" disabled title="Editing arrives in milestone M3">New indicator (M3)</button>
-      </PageHead>
+      <PageHead caption="UI-06" title="Indicator catalogue" />
       <p className="lead">
-        Every indicator has a versioned definition with its unit, direction, method and aggregation rules. Changing meaning creates a new version;
-        historic figures keep the version they were approved under.
+        Two levels. <strong>Outcome indicators</strong> (13) track change in the sector against 2022, with no targets.{" "}
+        <strong>Action indicators</strong> (108) track delivery of each policy action against a 2027 target.
       </p>
-      <Table caption="Indicators">
+
+      <h2>Outcome level (13)</h2>
+      <Table caption="Outcome indicators: 2022 baseline and latest value">
         <thead>
           <tr>
-            <th scope="col">Code</th>
-            <th scope="col">Indicator</th>
-            <th scope="col">Level</th>
-            <th scope="col">Method</th>
-            <th scope="col">Unit</th>
-            <th scope="col">Version</th>
-            <th scope="col">Responsible</th>
-            <th scope="col">Latest progress</th>
+            <th scope="col">Code</th><th scope="col">Indicator</th><th scope="col">Area</th><th scope="col">Unit</th><th scope="col">Better when</th>
+            <th scope="col" className="num">2022</th><th scope="col" className="num">2025</th><th scope="col">Trend</th><th scope="col">Source</th>
           </tr>
         </thead>
         <tbody>
-          {indicators.map((i) => (
-            <tr key={i.code}>
-              <td className="nowrap">{i.code}</td>
-              <td><Link href={`/indicators/${i.code}`}>{i.title}</Link></td>
-              <td><LevelTag level={i.level} /></td>
-              <td>{methodLabel[i.method]}</td>
-              <td>{i.unit}</td>
-              <td className="num">v{i.version}</td>
-              <td>{orgName(i.responsible)}</td>
-              <td className="small">{progressText(i).text}</td>
+          {outcomeIndicators.map((o) => (
+            <tr key={o.code}>
+              <td>{o.code}</td>
+              <td><Link href={`/indicators/${o.code}`}>{o.title}</Link> {o.testData && <StatusTag status="Test data" />}</td>
+              <td>{o.area}</td>
+              <td>{o.unit}</td>
+              <td>{o.direction === "increase" ? "Higher" : "Lower"}</td>
+              <td className="num">{formatOutcome(o, o.series["2022"])}</td>
+              <td className="num">{formatOutcome(o, o.series["2025"])}</td>
+              <td><StatusTag status={outcomeTrend(o, 2025).trend} /></td>
+              <td className="small">{o.source} ({o.tool === "Kobo" ? "Kobo processor survey" : "administrative data"})</td>
             </tr>
           ))}
         </tbody>
       </Table>
+
+      <h2>Action level (108)</h2>
+      <IndicatorFilterTable rows={rows} />
     </>
   );
 }

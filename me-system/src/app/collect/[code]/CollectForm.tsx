@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Icon } from "@/components/ui";
-import type { FormDef, FormQuestion } from "@/lib/data";
+import type { FormDef, FormQuestion } from "@/lib/workflow";
 
 type Answer = string | string[] | boolean | undefined;
 type SaveState = "idle" | "unsaved" | "saving" | "saved" | "sending";
@@ -85,11 +85,15 @@ export function CollectForm({ form }: { form: FormDef }) {
         else if (q.max !== undefined && n > q.max) e[q.id] = `“${q.label}” must be ${q.max} or less`;
       }
     }
-    if (form.code === "FRM-ACT" && isAnswered(answers.attendance)) {
-      const parts = ["female", "male", "not_disclosed"].map((k) => Number(answers[k] ?? NaN));
-      if (parts.every(Number.isFinite) && parts.reduce((s, n) => s + n, 0) !== Number(answers.attendance)) {
-        e.not_disclosed = "Female + male + not disclosed must equal attendances (categories are exclusive and exhaustive)";
-      }
+    if (form.code === "processor-survey") {
+      // MoC data-quality rules for the processor survey (manual section 7.3).
+      const n = (k: string) => (isAnswered(answers[k]) ? Number(answers[k]) : NaN);
+      if (n("managers_female") > n("managers_total")) e.managers_female = "Female managers cannot be more than total managers";
+      const util = n("rcn_processed_t") / n("installed_capacity_tpy");
+      if (Number.isFinite(util) && util > 1.1) e.rcn_processed_t = `Capacity utilisation would be ${Math.round(util * 100)}%. MoC accepts up to 110%; check both figures`;
+      const outturn = n("sample_kernel_kg") / n("sample_raw_kg");
+      if (Number.isFinite(outturn) && (outturn < 0.18 || outturn > 0.32))
+        e.sample_kernel_kg = `Outturn would be ${Math.round(outturn * 100)}%. Expected 18–32%; check the sample weights`;
     }
     if (uploads.some((u) => u.state === "Uploading" || u.state === "Pending scan")) e._evidence = "Wait for evidence uploads to finish scanning";
     return e;

@@ -1,79 +1,54 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { IndicatorCard, SeriesChart } from "@/components/IndicatorCard";
 import { fmtDate, PageHead, StatusTag, Table } from "@/components/ui";
-import { indicators, obligations, reports } from "@/lib/data";
+import { mtr } from "@/lib/cashew";
 import { SnapshotButton } from "./SnapshotButton";
 
-export const metadata: Metadata = { title: "Dashboard and reports" };
+export const metadata: Metadata = { title: "Dashboards and reports" };
+
+const cards = [
+  { href: "/reports/actions", title: "Policy Actions Dashboard", level: "Action level", text: "44 actions and 108 indicators: status by cluster, ministry and action. Threshold what-if for 2026 and 2027." },
+  { href: "/reports/outcome", title: "Outcome dashboard", level: "Outcome level", text: "13 sector indicators against 2022 with trend direction, charts and the top 10 export markets." },
+  { href: "/reports/progress-2025", title: "Progress report 2025 and MTR", level: "Previous period", text: "Goal progress, action-by-action summaries, OECD-DAC findings and recommendations." },
+];
 
 export default function ReportsPage() {
-  const expected = obligations.filter((o) => o.period === "2026-Q2" && o.state !== "Waived" && o.state !== "Not applicable");
-  const approved = expected.filter((o) => o.state === "Approved");
   return (
     <>
-      <PageHead caption="UI-11 · Official mode: approved values only" title="Dashboard and reports">
+      <PageHead caption="UI-11" title="Dashboards and reports">
         <SnapshotButton />
       </PageHead>
-
-      <div className="card" style={{ marginBottom: 24 }}>
-        <div className="grid grid--4">
-          <div><div className="small muted">Scope</div><strong>Policy POL-01 (all programmes)</strong></div>
-          <div><div className="small muted">Period</div><strong>2026-Q1 to 2026-Q3</strong></div>
-          <div><div className="small muted">Approval state</div><strong>Approved only</strong></div>
-          <div><div className="small muted">Last refresh</div><strong>24 Sep 2026, 08:00</strong></div>
-        </div>
-        <p className="small muted" style={{ margin: "12px 0 0" }}>
-          Filters for geography and organisation arrive with real data in M5. Draft work view is hidden from viewers.
-        </p>
-      </div>
-
-      <div className="notice notice--warning">
-        <p>
-          <strong>Reporting coverage 2026-Q2:</strong> {approved.length} of {expected.length} expected reports approved (1 overdue, 1 waived with reason).
-          Missing values are shown as “No data”, never as zero.
-        </p>
-      </div>
-
-      <h2>Indicators</h2>
       <div className="grid grid--3">
-        {indicators.map((i) => (
-          <IndicatorCard key={i.code} ind={i} />
-        ))}
-      </div>
-
-      <h2>Trends</h2>
-      <div className="grid grid--2">
-        {indicators.filter((i) => i.method !== "milestone").map((i) => (
-          <div key={i.code} className="card">
-            <h3><Link href={`/indicators/${i.code}`}>{i.title}</Link></h3>
-            <SeriesChart ind={i} />
-            <p className="small" style={{ margin: 0 }}><Link href={`/indicators/${i.code}`}>View data table, definition and sources</Link></p>
-          </div>
+        {cards.map((c) => (
+          <Link key={c.href} href={c.href} className="card card--link card--accent" style={{ textDecoration: "none", color: "inherit" }}>
+            <p className="small muted" style={{ marginBottom: 4 }}>{c.level}</p>
+            <h2 style={{ marginTop: 0, fontSize: "1.25rem", color: "var(--link)", textDecoration: "underline" }}>{c.title}</h2>
+            <p style={{ margin: 0 }}>{c.text}</p>
+          </Link>
         ))}
       </div>
 
       <h2>Published reports</h2>
-      <Table caption="Internal reports (immutable snapshots)">
+      <Table caption="Report versions (published reports are frozen snapshots)">
         <thead>
-          <tr><th scope="col">Report</th><th scope="col" className="num">Version</th><th scope="col">Data as of</th><th scope="col">Published</th><th scope="col">State</th></tr>
+          <tr><th scope="col">Report</th><th scope="col">Data as of</th><th scope="col">Issued</th><th scope="col">State</th></tr>
         </thead>
         <tbody>
-          {reports.map((r) => (
-            <tr key={r.id}>
-              <td>{r.title}<div className="small muted">{r.id}</div></td>
-              <td className="num">v{r.version}</td>
-              <td className="nowrap">{r.asOf}</td>
-              <td className="nowrap">{fmtDate(r.published)}</td>
-              <td><StatusTag status={r.state === "Superseded" ? "Superseded" : "Published"} label={r.state} /></td>
-            </tr>
-          ))}
+          <tr>
+            <td><Link href="/reports/actions">Policy Actions Dashboard, reporting year 2025</Link><div className="small muted">Action-Level workbook v5</div></td>
+            <td>Kobo submissions for 2025</td><td className="nowrap">{fmtDate("2026-05-27")}</td><td><StatusTag status="Endorsed" /></td>
+          </tr>
+          <tr>
+            <td><Link href="/reports/progress-2025">{mtr.title}</Link><div className="small muted">EU-German CAPSAFE and GATE support</div></td>
+            <td>{mtr.asOf}</td><td className="nowrap">{fmtDate(mtr.date)}</td><td><StatusTag status="Final draft" /></td>
+          </tr>
+          <tr>
+            <td><Link href="/reports/outcome">Outcome dashboard, 2022–2025</Link><div className="small muted">Outcome workbook v12</div></td>
+            <td>MAFF, GDCE data to 2025; processor survey test rows</td><td className="nowrap">May 2026</td><td><StatusTag status="Published" /></td>
+          </tr>
         </tbody>
       </Table>
-      <p className="small muted">
-        A published report keeps its original values, targets and definitions. Corrections create a superseding version; older versions stay readable
-        with a notice.
-      </p>
+      <p className="small muted">A correction to a published report creates a new version that supersedes it; the earlier version stays readable.</p>
     </>
   );
 }

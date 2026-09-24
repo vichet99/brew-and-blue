@@ -1,117 +1,131 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Breadcrumbs, fmtDate, LevelTag, Meta, PageHead, StatusTag, Table } from "@/components/ui";
-import { getPolicy, indicators, members, orgName, policies, programmes, programmesOf, projectsOf, results } from "@/lib/data";
+import { StatusBars } from "@/components/charts";
+import { Breadcrumbs, fmtDate, Meta, PageHead, StatusTag, Table } from "@/components/ui";
+import {
+  actionCounts,
+  actions,
+  actionsLedBy,
+  clusterLabel,
+  formatOutcome,
+  getOutcomeIndicator,
+  goalOutcomeCodes,
+  indicatorsOfMinistry,
+  ministries,
+  ministryCompletion,
+  mtr,
+  outcomeTrend,
+  pct,
+  policy,
+} from "@/lib/cashew";
 
 export function generateStaticParams() {
-  return policies.map((p) => ({ code: p.code }));
+  return [{ code: policy.code }];
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
-  const { code } = await params;
-  return { title: getPolicy(code)?.name ?? "Policy" };
-}
+export const metadata: Metadata = { title: policy.name };
 
 export default async function PolicyPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const pol = getPolicy(code);
-  if (!pol) notFound();
-  const owned = programmesOf(pol.code);
-  const contributing = programmes.filter((p) => p.contributesTo.some((c) => c.policy === pol.code));
-  const impact = results.filter((r) => r.owner === pol.code);
-  const outcomeInds = indicators.filter((i) => i.level === "outcome");
-  const access = members.filter((m) => m.scope === pol.code || m.scope === "Workspace");
+  if (code !== policy.code) notFound();
+  const all = actionCounts(actions);
 
   return (
     <>
-      <Breadcrumbs items={[{ label: "Policies and programmes", href: "/policies" }, { label: pol.code }]} />
-      <PageHead caption={`${pol.code} · Policy`} title={pol.name}>
-        <Link className="btn btn--secondary" href="/reports">Policy dashboard</Link>
+      <Breadcrumbs items={[{ label: "Policies", href: "/policies" }, { label: policy.code }]} />
+      <PageHead caption={`${policy.code} · Policy`} title={policy.name}>
+        <Link className="btn btn--secondary" href="/reports/outcome">Outcome dashboard</Link>
+        <Link className="btn btn--secondary" href="/reports/progress-2025">2025 progress report</Link>
       </PageHead>
       <Meta
         items={[
-          ["Status", <StatusTag key="s" status={pol.status} />],
-          ["Period", `${fmtDate(pol.start)} – ${fmtDate(pol.end)}`],
-          ["Responsible organisation", orgName(pol.owner)],
-          ["Accountable person", pol.accountable],
+          ["Approved", `${fmtDate(policy.approved)}, ${policy.approvedBy}`],
+          ["Period", "2022 – 2027"],
+          ["Owner", policy.owner],
+          ["M&E body", "Inter-Ministerial M&E Committee"],
         ]}
       />
-      <p className="lead">{pol.description}</p>
+      <p className="lead">{policy.vision}</p>
+      <p className="small muted">Aligned with the {policy.alignment}. Technical support: {policy.partners}.</p>
 
-      <h2>Objectives</h2>
-      <ol>
-        {pol.objectives.map((o) => (
-          <li key={o.code}>
-            <strong>{o.code}</strong> {o.text}
-          </li>
-        ))}
-      </ol>
-
-      <h2>Programmes</h2>
-      <div className="grid grid--2">
-        {owned.map((p) => (
-          <article key={p.code} className="card card--accent">
-            <p className="small muted" style={{ marginBottom: 4 }}>{p.code} · Owned programme</p>
-            <h3><Link href={`/programmes/${p.code}`}>{p.name}</Link></h3>
-            <p className="small">{p.description}</p>
-            <p className="small" style={{ margin: 0 }}>
-              {projectsOf(p.code).length} owned projects · <StatusTag status={p.status} />
-            </p>
-          </article>
-        ))}
+      <h2>Goals and results</h2>
+      <div className="grid grid--3">
+        {policy.goals.map((g) => {
+          const acts = actions.filter((a) => a.cluster === g.cluster);
+          const c = actionCounts(acts);
+          return (
+            <article key={g.code} className="card card--accent">
+              <p className="small muted" style={{ marginBottom: 4 }}>
+                {g.code} · <span className={`chip chip--${g.cluster}`}>{clusterLabel[g.cluster]} cluster</span>
+              </p>
+              <h3>{g.text}</h3>
+              <p className="small" style={{ marginBottom: 8 }}>
+                <strong>{acts.length} actions:</strong> {c.fully} fully, {c.largely} largely, {c.limited} limited · completion {pct(c.completion)}
+              </p>
+              <ul className="small" style={{ paddingLeft: 18, marginBottom: 0 }}>
+                {goalOutcomeCodes[g.code].map((oc) => {
+                  const o = getOutcomeIndicator(oc)!;
+                  const t = outcomeTrend(o, 2025);
+                  return (
+                    <li key={oc}>
+                      <Link href={`/indicators/${oc}`}>{o.title}</Link>: {formatOutcome(o, o.series["2025"])} <StatusTag status={t.trend} />
+                    </li>
+                  );
+                })}
+              </ul>
+            </article>
+          );
+        })}
       </div>
 
-      <h2>Contribution links</h2>
-      {contributing.length === 0 ? (
-        <p className="muted">No additional contribution links.</p>
-      ) : (
-        <ul>
-          {contributing.flatMap((p) =>
-            p.contributesTo
-              .filter((c) => c.policy === pol.code)
-              .map((c) => (
-                <li key={p.code + c.objective}>
-                  <Link href={`/programmes/${p.code}`}>{p.name}</Link> contributes to <strong>{c.objective}</strong>: {c.rationale}
-                </li>
-              )),
-          )}
-        </ul>
-      )}
-      <p className="small muted">A contribution link explains a pathway. It does not add numbers to policy totals and does not grant access to records.</p>
-
-      <h2>Impact results</h2>
-      {impact.map((r) => (
-        <p key={r.code}>
-          <LevelTag level={r.level} /> <strong>{r.code}</strong> {r.statement}
-          {r.assumptions && <span className="small muted"> · Assumption: {r.assumptions}</span>}
-        </p>
-      ))}
+      <h2>Where the policy stands (reporting year 2025)</h2>
       <p>
-        <Link href="/results">View the full results framework</Link>
+        {all.fully} of 44 actions fully achieved, {all.largely} largely achieved, {all.limited} limited. The MTR (situation mid-2025, 50% cut-off)
+        counted {mtr.clusterCounts.all.fully} / {mtr.clusterCounts.all.largely} / {mtr.clusterCounts.all.limited}.
       </p>
+      <StatusBars
+        caption="Action status by cluster, 2025 (workbook thresholds: largely ≥ 40%)"
+        rows={(["production", "processing", "export"] as const).map((cl) => {
+          const c = actionCounts(actions.filter((a) => a.cluster === cl));
+          return { label: clusterLabel[cl], fully: c.fully, largely: c.largely, limited: c.limited };
+        })}
+      />
 
-      <h2>Outcome indicators</h2>
-      <ul>
-        {outcomeInds.map((i) => (
-          <li key={i.code}>
-            <Link href={`/indicators/${i.code}`}>{i.title}</Link> <span className="muted small">({i.code}, {i.unit})</span>
-          </li>
-        ))}
-      </ul>
-
-      <h2>Who can see this policy</h2>
-      <Table caption="Access to this policy">
+      <h2>Ministry programmes</h2>
+      <p>Each ministry or institution has one programme. It owns the actions it leads and contributes to joint actions.</p>
+      <Table caption="Programmes by ministry, 2025">
         <thead>
-          <tr><th scope="col">Person</th><th scope="col">Role</th><th scope="col">Scope</th></tr>
+          <tr>
+            <th scope="col">Ministry / institution</th>
+            <th scope="col" className="num">Actions led</th>
+            <th scope="col" className="num">Indicators</th>
+            <th scope="col" className="num">Completion</th>
+            <th scope="col">Status counts (F / L / Lim.)</th>
+          </tr>
         </thead>
         <tbody>
-          {access.map((m) => (
-            <tr key={m.email}><td>{m.name}</td><td>{m.role}</td><td>{m.scope}</td></tr>
-          ))}
+          {ministries.map((m) => {
+            const c = ministryCompletion(m.code);
+            return (
+              <tr key={m.code}>
+                <td><Link href={`/programmes/${m.code}`}>{m.name}</Link> <span className="small muted">{m.short}</span></td>
+                <td className="num">{actionsLedBy(m.code).length}</td>
+                <td className="num">{indicatorsOfMinistry(m.code).length}</td>
+                <td className="num">{pct(c.completion)}</td>
+                <td className="nowrap">{c.fully} / {c.largely} / {c.limited}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
-      <p className="small muted">Access to policy-level aggregates does not include access to submission-level or personal data.</p>
+
+      <h2>Governance</h2>
+      <ul>
+        <li><strong>Committee:</strong> {policy.committee}</li>
+        <li><strong>Secretariat:</strong> {policy.secretariat}</li>
+        <li><strong>Monitoring:</strong> action level (44 actions, 108 indicators, annual Kobo report by 17 ministries) and outcome level (13 indicators, 2022 baseline, no targets).</li>
+      </ul>
     </>
   );
 }

@@ -1,102 +1,123 @@
 import Link from "next/link";
-import { IndicatorCard } from "@/components/IndicatorCard";
-import { fmtDate, PageHead, StatusTag, Table } from "@/components/ui";
-import { getIndicator, indicators, obligations, orgName, submissions, workspace } from "@/lib/data";
+import { PageHead, StatusTag, Table } from "@/components/ui";
+import {
+  actionCounts,
+  actions,
+  calendar,
+  dataNotes,
+  ministries,
+  ministryCompletion,
+  mtr,
+  pct,
+  policy,
+  thresholdFor,
+} from "@/lib/cashew";
+import { submissions } from "@/lib/workflow";
 
 export default function OverviewPage() {
+  const c = actionCounts(actions, 2025);
   const reviewQueue = submissions.filter((s) => s.state === "Submitted" || s.state === "In review");
   const returned = submissions.filter((s) => s.state === "Returned");
-  const overdue = obligations.filter((o) => o.state === "Overdue");
-  const due = obligations.filter((o) => o.state === "Due");
-  const headline = indicators.filter((i) => ["IND-02", "IND-03", "IND-04"].includes(i.code));
+  const lowest = [...ministries]
+    .map((m) => ({ m, c: ministryCompletion(m.code) }))
+    .sort((a, b) => (a.c.completion ?? 0) - (b.c.completion ?? 0))
+    .slice(0, 3);
+  const limited = actions.filter((a) => (a.y2025.avgCappedPct ?? 0) < thresholdFor(2025).largely);
 
   return (
     <>
-      <PageHead caption={`${workspace.name} · Current period ${workspace.currentPeriod}`} title="Overview">
-        <Link className="btn" href="/collect/FRM-ACT">Submit a report</Link>
-        <Link className="btn btn--secondary" href="/reports">Open dashboard</Link>
+      <PageHead caption={`${policy.name} · Example workspace`} title="Overview">
+        <Link className="btn" href="/collect/cashew-indicator-report">Fill ministry report</Link>
+        <Link className="btn btn--secondary" href="/reports/actions">Policy Actions Dashboard</Link>
       </PageHead>
 
       <p className="lead">
-        Your tasks come first. Headline figures below show <strong>approved</strong> values only, with their period, target and coverage.
+        The reporting year 2025 cycle is closed: 17 of 17 ministries reported, and the Committee endorsed the annual report in May 2026. The next cycle
+        (reporting year 2026) opens in February 2027, and the threshold for &ldquo;largely achieved&rdquo; rises from 40% to 70%.
       </p>
 
-      <h2 className="visually-hidden">My tasks</h2>
-      <div className="grid grid--4" style={{ marginBottom: 24 }}>
-        <Link href="/reviews" className="card card--link card--accent" style={{ textDecoration: "none", color: "inherit" }}>
-          <p className="stat">{reviewQueue.length}</p>
-          <p style={{ margin: 0 }}>Reviews waiting for you</p>
-        </Link>
-        <Link href="/submissions" className="card card--link card--accent" style={{ textDecoration: "none", color: "inherit", borderTopColor: "var(--orange)" }}>
-          <p className="stat">{returned.length}</p>
-          <p style={{ margin: 0 }}>Returned for correction</p>
-        </Link>
-        <a href="#obligations" className="card card--link card--accent" style={{ textDecoration: "none", color: "inherit", borderTopColor: "var(--red)" }}>
-          <p className="stat">{overdue.length}</p>
-          <p style={{ margin: 0 }}>Overdue reports</p>
-        </a>
-        <a href="#obligations" className="card card--link card--accent" style={{ textDecoration: "none", color: "inherit", borderTopColor: "var(--teal)" }}>
-          <p className="stat">{due.length}</p>
-          <p style={{ margin: 0 }}>Reports due 15 Oct 2026</p>
-        </a>
+      <h2 className="visually-hidden">Reporting year 2025 headline</h2>
+      <div className="kpi-grid">
+        <div className="kpi"><p className="stat">44</p><p>Policy actions</p></div>
+        <div className="kpi kpi--fully"><p className="stat">{c.fully}</p><p><StatusTag status="Fully Achieved" /></p></div>
+        <div className="kpi kpi--largely"><p className="stat">{c.largely}</p><p><StatusTag status="Largely Achieved" /></p></div>
+        <div className="kpi kpi--limited"><p className="stat">{c.limited}</p><p><StatusTag status="Limited Progress" /></p></div>
+        <div className="kpi"><p className="stat">{pct(c.completion)}</p><p>Completion rate (average % of 2027 targets, capped at 100)</p></div>
       </div>
 
-      {overdue.length > 0 && (
-        <div className="notice notice--error" role="status">
-          <p>
-            <strong>{overdue.length} report overdue:</strong>{" "}
-            {overdue.map((o) => `${getIndicator(o.indicator)?.title} (${o.period}, ${orgName(o.org)})`).join("; ")}.
+      <div className="grid grid--2">
+        <section className="card card--accent" aria-labelledby="tasks-h">
+          <h2 id="tasks-h" style={{ marginTop: 0, fontSize: "1.25rem" }}>Tasks for the M&amp;E Secretariat</h2>
+          <ul>
+            <li>
+              <Link href="/reviews">{reviewQueue.length} submission waiting for verification</Link> <StatusTag status="Illustrative" />
+            </li>
+            <li>
+              {returned.length} returned to a ministry for correction <StatusTag status="Illustrative" />
+            </li>
+            <li>
+              MTR next steps: {mtr.nextSteps[0].replace(/\.$/, "")}; {mtr.nextSteps[1].charAt(0).toLowerCase() + mtr.nextSteps[1].slice(1)}
+            </li>
+            <li>January 2027: re-deploy the Kobo form for reporting year 2026.</li>
+          </ul>
+        </section>
+        <section className="card card--accent" style={{ borderTopColor: "var(--red)" }} aria-labelledby="attention-h">
+          <h2 id="attention-h" style={{ marginTop: 0, fontSize: "1.25rem" }}>Needs attention</h2>
+          <p className="small muted" style={{ marginBottom: 8 }}>Lowest ministry completion, 2025:</p>
+          <ul>
+            {lowest.map(({ m, c }) => (
+              <li key={m.code}>
+                <Link href={`/programmes/${m.code}`}>{m.name}</Link>: {pct(c.completion)}
+              </li>
+            ))}
+          </ul>
+          <p className="small muted" style={{ marginBottom: 8 }}>Actions with limited progress ({limited.length}):</p>
+          <p className="small" style={{ margin: 0 }}>
+            {limited.map((a, i) => (
+              <span key={a.code}>
+                {i > 0 && ", "}
+                <Link href={`/projects/${a.code}`}>Action {a.no}</Link>
+              </span>
+            ))}
           </p>
-        </div>
-      )}
+        </section>
+      </div>
 
-      <h2 id="obligations">Reporting obligations</h2>
-      <Table caption="Reporting obligations by period">
+      <h2>Annual reporting calendar</h2>
+      <p>From the Cashew Policy Monitoring System Manual. One Kobo submission per ministry per year.</p>
+      <Table caption="Annual cycle (next: reporting year 2026, submitted in 2027)">
         <thead>
-          <tr>
-            <th scope="col">Indicator</th>
-            <th scope="col">Period</th>
-            <th scope="col">Responsible</th>
-            <th scope="col">Due</th>
-            <th scope="col">Status</th>
-          </tr>
+          <tr><th scope="col">When</th><th scope="col">Activity</th><th scope="col">Owner</th></tr>
         </thead>
         <tbody>
-          {obligations.map((o) => (
-            <tr key={o.id}>
-              <td>
-                <Link href={`/indicators/${o.indicator}`}>{getIndicator(o.indicator)?.title}</Link>
-                {o.reason && <div className="small muted">Waiver reason: {o.reason}</div>}
-              </td>
-              <td className="nowrap">{o.period}</td>
-              <td>{orgName(o.org)}</td>
-              <td className="nowrap">{fmtDate(o.due)}</td>
-              <td><StatusTag status={o.state} /></td>
-            </tr>
+          {calendar.map((r) => (
+            <tr key={r.month}><td className="nowrap">{r.month}</td><td>{r.activity}</td><td>{r.owner}</td></tr>
           ))}
         </tbody>
       </Table>
 
-      <h2>Approved headline indicators</h2>
-      <div className="grid grid--3">
-        {headline.map((i) => (
-          <IndicatorCard key={i.code} ind={i} />
-        ))}
+      <h2>Data-quality gaps carried from 2025</h2>
+      <div className="notice notice--warning">
+        <ul>
+          <li>No evidence files were recorded for any of the 108 indicators (the manual asks for one per indicator).</li>
+          <li>Narratives were recorded as &ldquo;N/A&rdquo;. Action narratives in this site come from the MTR progress summaries instead.</li>
+          <li>Processor-survey indicators (Q1, Q2, PR1, PR2, S2, S3) are still based on test rows.</li>
+        </ul>
       </div>
 
-      <h2>How a figure reaches this page</h2>
+      <h2>How the monitoring works</h2>
       <ol className="flow">
-        <li>Define indicator</li>
-        <li>Assign obligation</li>
-        <li>Collect with evidence</li>
-        <li>Review and return or approve</li>
-        <li>Calculate observation</li>
-        <li>Compare with target</li>
-        <li>Freeze report</li>
+        <li>MoC sends Kobo link</li>
+        <li>Ministries report values + evidence</li>
+        <li>MoC verifies (2 weeks)</li>
+        <li>Status by year threshold</li>
+        <li>Dashboard + report</li>
+        <li>Committee endorses</li>
       </ol>
-      <p className="small muted">
-        A monitoring dashboard does not establish causal impact. Attribution needs an appropriate evaluation method.
-      </p>
+      <details className="small">
+        <summary>Where these numbers come from</summary>
+        <ul>{dataNotes.map((n) => <li key={n}>{n}</li>)}</ul>
+      </details>
     </>
   );
 }

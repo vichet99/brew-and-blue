@@ -1,175 +1,121 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { IndicatorCard } from "@/components/IndicatorCard";
+import { KoboQuestions } from "@/components/KoboQuestions";
 import { Tabs } from "@/components/Tabs";
-import { Breadcrumbs, fmtDate, Meta, PageHead, StatusTag, Table } from "@/components/ui";
+import { Breadcrumbs, Meta, PageHead, StatusTag, Table } from "@/components/ui";
 import {
-  activities,
-  forms,
-  getIndicator,
-  getProgramme,
-  getProject,
-  indicatorsOf,
-  obligations,
-  orgName,
-  projects,
-  reports,
-  submissions,
-} from "@/lib/data";
+  actionStatus,
+  actions,
+  clusterLabel,
+  formatValue,
+  getAction,
+  getMinistry,
+  indicatorsOfAction,
+  ministryShort,
+  mtr,
+  pct,
+  policy,
+  statusFor,
+} from "@/lib/cashew";
 
 export function generateStaticParams() {
-  return projects.map((p) => ({ code: p.code }));
+  return actions.map((a) => ({ code: a.code }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
   const { code } = await params;
-  return { title: getProject(code)?.name ?? "Project" };
+  const a = getAction(code);
+  return { title: a ? `Action ${a.no}` : "Action" };
 }
 
-export default async function ProjectPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function ActionPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const prj = getProject(code);
-  if (!prj) notFound();
-  const programme = getProgramme(prj.programme);
-  const inds = indicatorsOf(prj.code);
-  const acts = activities.filter((a) => a.project === prj.code);
-  const prjForms = forms.filter((f) => f.project === prj.code);
-  const obs = obligations.filter((o) => inds.some((i) => i.code === o.indicator));
-  const tasks = obs.filter((o) => o.state === "Due" || o.state === "Overdue");
-  const toFix = submissions.filter((s) => s.project === prj.code && s.state === "Returned");
-  const inReview = submissions.filter((s) => s.project === prj.code && (s.state === "Submitted" || s.state === "In review"));
+  const a = getAction(code);
+  if (!a) notFound();
+  const inds = indicatorsOfAction(a);
+  const s = actionStatus(a);
+  const lead = getMinistry(a.lead)!;
+  const prev = actions.find((x) => x.no === a.no - 1);
+  const next = actions.find((x) => x.no === a.no + 1);
 
   const overview = (
     <>
-      <h2 style={{ marginTop: 0 }}>What needs doing</h2>
-      {tasks.length === 0 && toFix.length === 0 ? (
-        <div className="notice notice--success"><p>Nothing due right now.</p></div>
-      ) : (
-        <ul>
-          {toFix.map((s) => (
-            <li key={s.id}>
-              <StatusTag status="Returned" /> <Link href={`/reviews/${s.id}`}>{s.id}</Link>: {s.returnReason}
-            </li>
-          ))}
-          {tasks.map((o) => (
-            <li key={o.id}>
-              <StatusTag status={o.state} /> {getIndicator(o.indicator)?.title}, {o.period}, due {fmtDate(o.due)}
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="small muted">{inReview.length} submission(s) from this project are waiting for review.</p>
-      <h2>Indicator progress</h2>
-      {inds.length === 0 ? (
-        <div className="notice"><p>No indicators defined yet. The M&E reviewer adds them before reporting starts.</p></div>
-      ) : (
-        <div className="grid grid--2">
-          {inds.map((i) => (
-            <IndicatorCard key={i.code} ind={i} />
-          ))}
-        </div>
-      )}
-    </>
-  );
-
-  const indicatorTab =
-    inds.length === 0 ? (
-      <p className="muted">No indicators yet.</p>
-    ) : (
-      <Table caption="Indicators for this project">
+      <h2 style={{ marginTop: 0 }}>Progress summary (MTR, mid-2025)</h2>
+      <div className="notice">
+        <p>
+          <strong>MTR progress: {a.mtrProgress || "not stated"}.</strong> {a.mtrSummary}
+        </p>
+        <p className="small muted">Source: {mtr.title}, {mtr.status.toLowerCase()} ({mtr.date}). Responsible institutions listed in the MTR: {a.responsible}.</p>
+      </div>
+      <h2>Indicators, 2027 targets and 2025 results</h2>
+      <Table caption={`Indicators for action ${a.no}`}>
         <thead>
-          <tr><th scope="col">Code</th><th scope="col">Indicator</th><th scope="col">Method</th><th scope="col">Unit</th><th scope="col">Frequency</th></tr>
+          <tr>
+            <th scope="col">Indicator</th>
+            <th scope="col">Reported by</th>
+            <th scope="col">2027 target</th>
+            <th scope="col" className="num">2025 value</th>
+            <th scope="col" className="num">% of target</th>
+            <th scope="col">2025 status</th>
+            <th scope="col">Same % in 2027</th>
+          </tr>
         </thead>
         <tbody>
-          {inds.map((i) => (
-            <tr key={i.code}>
-              <td>{i.code}</td>
-              <td><Link href={`/indicators/${i.code}`}>{i.title}</Link></td>
-              <td>{i.method.replace("_", " ")}</td>
-              <td>{i.unit}</td>
-              <td>{i.frequency}</td>
-            </tr>
-          ))}
+          {inds.map((i) => {
+            const in2027 = statusFor(i.y2025.cappedPct, 2027);
+            return (
+              <tr key={i.id}>
+                <td><Link href={`/indicators/${i.code}`}>{i.code}</Link><div className="small">{i.label}</div></td>
+                <td>{ministryShort(i.ministry)}</td>
+                <td className="small">{i.targetText}</td>
+                <td className="num">{formatValue(i)}</td>
+                <td className="num">{pct(i.y2025.actualPct)}</td>
+                <td>{i.y2025.status && <StatusTag status={i.y2025.status} />}</td>
+                <td>{in2027 && <StatusTag status={in2027} />}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
-    );
-
-  const activityTab = (
-    <Table caption="Activities">
-      <thead>
-        <tr><th scope="col">Code</th><th scope="col">Activity</th><th scope="col">Dates</th><th scope="col">Status</th></tr>
-      </thead>
-      <tbody>
-        {acts.map((a) => (
-          <tr key={a.code}>
-            <td className="nowrap">{a.code}</td>
-            <td>{a.title}</td>
-            <td className="nowrap">{fmtDate(a.start)} – {fmtDate(a.end)}</td>
-            <td><StatusTag status={a.status} /></td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-  );
-
-  const formsTab =
-    prjForms.length === 0 ? (
-      <p className="muted">No forms published for this project.</p>
-    ) : (
-      <div className="grid grid--2">
-        {prjForms.map((f) => (
-          <article key={f.code} className="card">
-            <h3>{f.title}</h3>
-            <p className="small">Version {f.version} · published {fmtDate(f.published)} · {f.questions.length} questions</p>
-            <div className="btn-row">
-              <Link className="btn" href={`/collect/${f.code}`}>Fill in</Link>
-              <Link className="btn btn--secondary" href={`/forms/${f.code}`}>Open designer</Link>
-            </div>
-          </article>
-        ))}
-      </div>
-    );
-
-  const reportsTab = (
-    <ul>
-      {reports.map((r) => (
-        <li key={r.id}>
-          <Link href="/reports">{r.title}</Link> <span className="small muted">v{r.version} · {r.state}</span>
-        </li>
-      ))}
-    </ul>
+      <p className="small muted">
+        &ldquo;Same % in 2027&rdquo; applies the 2027 threshold (largely ≥ 90%) to today&apos;s value, to show how far each indicator still has to go.
+        Values above 100% count as 100% for status.
+      </p>
+    </>
   );
 
   return (
     <>
       <Breadcrumbs
         items={[
-          { label: "Projects", href: "/projects" },
-          { label: programme?.code ?? "", href: `/programmes/${prj.programme}` },
-          { label: prj.code },
+          { label: "Policy actions", href: "/projects" },
+          { label: `${lead.short} programme`, href: `/programmes/${lead.code}` },
+          { label: `Action ${a.no}` },
         ]}
       />
-      <PageHead caption={`${prj.code} · Project`} title={prj.name}>
-        {prjForms[0] && <Link className="btn" href={`/collect/${prjForms[0].code}`}>Submit a report</Link>}
+      <PageHead caption={`${a.code} · ${clusterLabel[a.cluster]} cluster · ${policy.name}`} title={`Action ${a.no}`}>
+        <Link className="btn" href={`/collect/cashew-indicator-report?ministry=${a.lead}`}>Report on this action</Link>
       </PageHead>
+      <p className="lead">{a.title}</p>
       <Meta
         items={[
-          ["Period", `${fmtDate(prj.start)} – ${fmtDate(prj.end)}`],
-          ["Responsible organisation", orgName(prj.owner)],
-          ["Owning programme", programme ? <Link key="p" href={`/programmes/${programme.code}`}>{programme.name}</Link> : prj.programme],
-          ["Status", <StatusTag key="s" status={prj.status} />],
+          ["Lead ministry", <Link key="l" href={`/programmes/${lead.code}`}>{lead.name}</Link>],
+          ["Contributing", a.ministries.length > 1 ? a.ministries.slice(1).map(ministryShort).join(", ") : "None"],
+          ["2025 completion", pct(a.y2025.avgCappedPct)],
+          ["2025 status", s ? <StatusTag key="s" status={s} /> : "No data"],
         ]}
       />
       <Tabs
         tabs={[
           { label: "Overview", content: overview },
-          { label: `Indicators (${inds.length})`, content: indicatorTab },
-          { label: `Activities (${acts.length})`, content: activityTab },
-          { label: `Forms (${prjForms.length})`, content: formsTab },
-          { label: "Reports", content: reportsTab },
+          { label: `Kobo questions (${inds.length})`, content: <KoboQuestions indicators={inds} /> },
         ]}
       />
+      <nav className="btn-row" aria-label="Previous and next action" style={{ marginTop: 24, justifyContent: "space-between" }}>
+        {prev ? <Link href={`/projects/${prev.code}`}>← Action {prev.no}</Link> : <span />}
+        {next ? <Link href={`/projects/${next.code}`}>Action {next.no} →</Link> : <span />}
+      </nav>
     </>
   );
 }

@@ -2,106 +2,132 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { StatusTag, Table } from "@/components/ui";
-import type { FormDef, Submission, SubmissionState } from "@/lib/data";
+import { StatusTag } from "@/components/ui";
+import { statusWith, type Threshold } from "@/lib/rules";
 
-type Actor = "reviewer" | "submitter";
+interface Row {
+  id: string;
+  code: string;
+  action: number;
+  label: string;
+  target: string;
+  method: string;
+  prev: number | string | null;
+  value: number | string | null;
+  pct: number | null;
+  narrative: string;
+  evidence: string | null;
+  feedback: string;
+}
 
-export function ReviewPanel({ sub, form }: { sub: Submission; form: FormDef }) {
-  const [state, setState] = useState<SubmissionState>(sub.state);
-  const [actor, setActor] = useState<Actor>("reviewer");
-  const [mode, setMode] = useState<null | "return" | "reject" | "approve">(null);
+interface Sub {
+  id: string;
+  year: number;
+  state: string;
+  submitted: string;
+  respondentRole: string;
+  illustrative: boolean;
+  returnReason: string;
+  reviewNote: string;
+  ministry: string;
+  ministryShort: string;
+}
+
+const checks = [
+  { id: "reasonable", label: "Reasonable progress: values make sense against 2025 and the 2027 target (a sudden 10× jump needs a query)" },
+  { id: "consistent", label: "Internal consistency: each narrative matches its value" },
+  { id: "evidence", label: "Evidence sufficiency: legible, signed where applicable, dated within the reporting year" },
+  { id: "assignment", label: "Assignment correctness: the ministry only reported indicators it owns (no double counting)" },
+];
+
+const show = (v: number | string | null) =>
+  v === null || v === "" ? "—" : typeof v === "string" ? ({ completed: "Completed", in_progress: "In progress", not_started: "Not yet started" } as Record<string, string>)[v] ?? v : v.toLocaleString("en-GB");
+
+export function ReviewPanel({ submission: s, rows, flags, threshold }: { submission: Sub; rows: Row[]; flags: { level: string; text: string }[]; threshold: Threshold }) {
+  const [state, setState] = useState(s.state);
+  const [actor, setActor] = useState<"reviewer" | "submitter">("reviewer");
+  const [mode, setMode] = useState<null | "approve" | "return" | "reject">(null);
   const [reason, setReason] = useState("");
-  const [fields, setFields] = useState<string[]>([]);
+  const [ticked, setTicked] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [log, setLog] = useState<string[]>([]);
-
   const decidable = state === "Submitted" || state === "In review";
-  const blocking = sub.flags.some((f) => f.includes("blocking"));
-  const labelOf = (id: string) => form.questions.find((q) => q.id === id)?.label ?? id;
+  const blocking = flags.filter((f) => f.level === "blocking");
 
   function act() {
     setError("");
-    if (actor === "submitter" && mode === "approve") {
-      setError("You submitted this revision, so you cannot approve it. Another reviewer must decide.");
-      return;
-    }
-    if ((mode === "return" || mode === "reject") && reason.trim().length < 10) {
-      setError("Give a specific reason of at least 10 characters so the collector knows what to fix.");
-      return;
-    }
-    if (mode === "approve" && blocking) {
-      setError("A blocking quality flag is open. Resolve it before approving.");
-      return;
-    }
-    const now = new Date().toLocaleString("en-GB");
-    const next: SubmissionState = mode === "approve" ? "Approved" : mode === "return" ? "Returned" : "Rejected";
+    if (actor === "submitter" && mode === "approve") return setError("You entered this submission, so you cannot approve it. Another MoC reviewer must decide.");
+    if ((mode === "return" || mode === "reject") && reason.trim().length < 10) return setError("Write a specific query of at least 10 characters so the ministry knows what to fix.");
+    if (mode === "approve" && blocking.length) return setError(`${blocking.length} blocking flag(s) are open. Return the submission instead.`);
+    if (mode === "approve" && ticked.length < checks.length) return setError("Complete all four verification checks before approving.");
+    const next = mode === "approve" ? "Approved" : mode === "return" ? "Returned" : "Rejected";
     setState(next);
-    setLog((l) => [`${now} · ${next} revision r${sub.revision}${reason ? ` · “${reason}”` : ""}${fields.length ? ` · fields: ${fields.join(", ")}` : ""}`, ...l]);
+    setLog((l) => [`${new Date().toLocaleString("en-GB")} · ${next}${reason ? ` · “${reason}”` : ""}`, ...l]);
     setMode(null);
     setReason("");
-    setFields([]);
   }
 
   return (
     <>
       <div className="page-head">
         <div>
-          <span className="caption">UI-10 · {form.title} v{form.version} · revision r{sub.revision} · {sub.period}</span>
-          <h1>Review {sub.id}</h1>
+          <span className="caption">UI-10 · Reporting year {s.year} · {s.respondentRole} · submitted {s.submitted}</span>
+          <h1>Verify {s.ministryShort} submission</h1>
         </div>
-        <StatusTag status={state} />
+        <p className="btn-row" style={{ margin: 0 }}>
+          <StatusTag status={state} /> {s.illustrative && <StatusTag status="Illustrative" />}
+        </p>
       </div>
+      <p className="lead">{s.ministry} · {rows.length} assigned indicators · {s.id}</p>
+      {s.illustrative && (
+        <div className="notice notice--warning"><p><strong>Illustrative record.</strong> Reporting year 2026 has not been collected yet. These values are invented to demonstrate the review workflow.</p></div>
+      )}
 
       <div className="two-col">
         <div>
-          {sub.returnReason && sub.state !== "Rejected" && (
-            <div className="notice notice--warning">
-              <p><strong>Previous return reason:</strong> {sub.returnReason}</p>
+          {s.returnReason && <div className="notice notice--warning"><p><strong>Query sent to the ministry:</strong> {s.returnReason}</p></div>}
+          {s.reviewNote && <div className="notice"><p><strong>Review note:</strong> {s.reviewNote}</p></div>}
+          {flags.length > 0 && (
+            <div className={`notice ${blocking.length ? "notice--error" : "notice--warning"}`}>
+              <p><strong>Automatic flags ({flags.length})</strong>. A flag is a prompt to check, not proof of error.</p>
+              <ul className="small">{flags.slice(0, 15).map((f) => <li key={f.text}>{f.level === "blocking" ? "Blocking: " : ""}{f.text}</li>)}</ul>
+              {flags.length > 15 && <p className="small">and {flags.length - 15} more.</p>}
             </div>
           )}
-          {sub.flags.length > 0 && (
-            <div className={`notice ${blocking ? "notice--error" : "notice--warning"}`}>
-              <p><strong>Quality flags</strong> (a flag is not proof of error):</p>
-              <ul>{sub.flags.map((f) => <li key={f}>{f}</li>)}</ul>
-            </div>
-          )}
-          <Table caption={`Answers, revision r${sub.revision}`}>
-            <thead>
-              <tr><th scope="col">Question</th><th scope="col">Answer</th>{sub.previous && <th scope="col">Change from r{sub.revision - 1}</th>}</tr>
-            </thead>
-            <tbody>
-              {Object.entries(sub.answers).map(([k, v]) => {
-                const prev = sub.previous?.[k];
-                const changed = sub.previous && prev !== undefined && prev !== v;
-                return (
-                  <tr key={k}>
-                    <td>{labelOf(k)} <div className="small muted"><code>{k}</code></div></td>
-                    <td>{typeof v === "boolean" ? (v ? "Yes" : "No") : String(v)}</td>
-                    {sub.previous && (
-                      <td>{changed ? <><span className="diff-old">{String(prev)}</span> → <span className="diff-new">{String(v)}</span></> : <span className="muted">No change</span>}</td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
-
-          <h2>Evidence</h2>
-          {sub.evidence.length === 0 ? (
-            <p><StatusTag status="Not reported" label="No evidence attached" /></p>
-          ) : (
-            <ul>
-              {sub.evidence.map((e) => (
-                <li key={e.name}>
-                  {e.scan === "Clean" ? <a href="#download" onClick={(ev) => ev.preventDefault()}>{e.name}</a> : <span>{e.name}</span>}{" "}
-                  <span className="small muted">{e.size}</span> <StatusTag status={e.scan} />
-                  {e.scan !== "Clean" && <span className="small muted"> Download unavailable until the scan is clean.</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-
+          <div className="table-wrap" role="region" aria-label="Reported values" tabIndex={0}>
+            <table>
+              <caption>Reported values</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Indicator</th>
+                  {s.year > 2025 && <th scope="col" className="num">2025</th>}
+                  <th scope="col" className="num">Reported</th>
+                  <th scope="col" className="num">% of target</th>
+                  <th scope="col">Status ({s.year} rule)</th>
+                  <th scope="col">Narrative and evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const st = statusWith(r.pct, threshold);
+                  return (
+                    <tr key={r.id}>
+                      <td><Link href={`/indicators/${r.code}`}>{r.code}</Link> <span className="small muted">Action {r.action}</span><div className="small">{r.label.length > 90 ? r.label.slice(0, 90) + "…" : r.label}</div><div className="small muted">Target: {r.target}</div></td>
+                      {s.year > 2025 && <td className="num">{show(r.prev)}</td>}
+                      <td className="num"><strong>{show(r.value)}</strong></td>
+                      <td className="num">{r.pct === null ? "—" : `${r.pct}%`}</td>
+                      <td>{st ? <StatusTag status={st} /> : "—"}</td>
+                      <td className="small">
+                        {r.narrative || <span className="muted">No narrative</span>}
+                        <div>{r.evidence ? <span>📎 {r.evidence}</span> : <span className="muted">No evidence file</span>}</div>
+                        {r.feedback && <div className="muted">Challenge: {r.feedback}</div>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           {log.length > 0 && (
             <>
               <h2>Audit events (this session)</h2>
@@ -110,60 +136,49 @@ export function ReviewPanel({ sub, form }: { sub: Submission; form: FormDef }) {
           )}
         </div>
 
-        <aside className="card" aria-labelledby="decision-h">
-          <h2 id="decision-h" style={{ marginTop: 0 }}>Decision</h2>
+        <aside className="card" aria-labelledby="dec-h">
+          <h2 id="dec-h" style={{ marginTop: 0 }}>Decision</h2>
           <fieldset className="field">
             <legend className="small">Simulate acting as</legend>
-            <label className="choice"><input type="radio" name="actor" checked={actor === "reviewer"} onChange={() => setActor("reviewer")} /> Reviewer Demo (M&E reviewer)</label>
-            <label className="choice"><input type="radio" name="actor" checked={actor === "submitter"} onChange={() => setActor("submitter")} /> {sub.owner.split(" (")[0]} (original submitter)</label>
+            <label className="choice"><input type="radio" name="actor" checked={actor === "reviewer"} onChange={() => setActor("reviewer")} /> MoC reviewer</label>
+            <label className="choice"><input type="radio" name="actor" checked={actor === "submitter"} onChange={() => setActor("submitter")} /> The person who entered it</label>
           </fieldset>
-
           {!decidable ? (
             <div className="notice">
-              <p>This revision is <strong>{state}</strong>. It is locked; any correction creates a new revision.</p>
-              {state === "Approved" && <p className="small">Downstream: IND-01 observation for {sub.period} recalculates and waits for observation approval.</p>}
-              <Link href="/reviews">Back to review queue</Link>
+              <p>This submission is <strong>{state}</strong> and locked. Corrections create a new revision.</p>
+              <Link href="/reviews">Back to reviews</Link>
             </div>
           ) : (
             <>
+              <fieldset className="field">
+                <legend>Verification checks</legend>
+                {checks.map((c) => (
+                  <label key={c.id} className="choice" style={{ alignItems: "flex-start", fontSize: "0.875rem" }}>
+                    <input type="checkbox" checked={ticked.includes(c.id)} onChange={(e) => setTicked((t) => (e.target.checked ? [...t, c.id] : t.filter((x) => x !== c.id)))} style={{ marginTop: 2 }} />
+                    {c.label}
+                  </label>
+                ))}
+              </fieldset>
               <div className="btn-row" style={{ marginBottom: 16 }}>
                 <button type="button" className="btn" onClick={() => setMode("approve")} aria-pressed={mode === "approve"}>Approve</button>
                 <button type="button" className="btn btn--secondary" onClick={() => setMode("return")} aria-pressed={mode === "return"}>Return</button>
                 <button type="button" className="btn btn--warning" onClick={() => setMode("reject")} aria-pressed={mode === "reject"}>Reject</button>
               </div>
               {mode && (
-                <div>
-                  {mode === "approve" ? (
-                    <p className="small">
-                      Approving applies to revision r{sub.revision} only. It will update the {sub.period} candidate observation for the linked indicator.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="field">
-                        <label htmlFor="reason">{mode === "return" ? "What needs correcting?" : "Why reject?"}</label>
-                        <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
-                      </div>
-                      {mode === "return" && (
-                        <fieldset className="field">
-                          <legend>Affected fields</legend>
-                          {Object.keys(sub.answers).map((k) => (
-                            <label key={k} className="choice">
-                              <input type="checkbox" checked={fields.includes(k)} onChange={(e) => setFields((f) => (e.target.checked ? [...f, k] : f.filter((x) => x !== k)))} />
-                              {labelOf(k)}
-                            </label>
-                          ))}
-                        </fieldset>
-                      )}
-                    </>
+                <>
+                  {mode !== "approve" && (
+                    <div className="field">
+                      <label htmlFor="reason">{mode === "return" ? "Query for the ministry (reply due in 5 working days)" : "Reason for rejecting"}</label>
+                      <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+                    </div>
                   )}
+                  {mode === "approve" && <p className="small">Approving locks this submission and feeds its values into the {s.year} dashboard.</p>}
                   {error && <p className="error-message" role="alert">{error}</p>}
                   <div className="btn-row">
-                    <button type="button" className={`btn ${mode === "reject" ? "btn--warning" : ""}`} onClick={act}>
-                      Confirm {mode}
-                    </button>
+                    <button type="button" className={`btn ${mode === "reject" ? "btn--warning" : ""}`} onClick={act}>Confirm {mode}</button>
                     <button type="button" className="btn btn--secondary" onClick={() => { setMode(null); setError(""); }}>Cancel</button>
                   </div>
-                </div>
+                </>
               )}
             </>
           )}

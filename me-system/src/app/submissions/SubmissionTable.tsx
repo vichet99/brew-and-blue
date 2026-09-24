@@ -3,9 +3,20 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { StatusTag } from "@/components/ui";
-import { forms, submissions, type SubmissionState } from "@/lib/data";
 
-const states: SubmissionState[] = ["Draft", "Submitted", "In review", "Returned", "Approved", "Rejected", "Superseded"];
+interface Row {
+  id: string;
+  year: number;
+  ministry: string;
+  state: string;
+  submitted: string;
+  indicators: number;
+  reported: number;
+  evidence: number;
+  blocking: number;
+  warnings: number;
+  illustrative: boolean;
+}
 
 function csvCell(v: string) {
   // Neutralise spreadsheet formula injection (FR-32) and quote.
@@ -13,102 +24,80 @@ function csvCell(v: string) {
   return `"${safe.replace(/"/g, '""')}"`;
 }
 
-export function SubmissionTable() {
+export function SubmissionTable({ rows }: { rows: Row[] }) {
+  const [year, setYear] = useState("");
   const [state, setState] = useState("");
-  const [form, setForm] = useState("");
-  const [period, setPeriod] = useState("");
   const [q, setQ] = useState("");
-
-  const rows = useMemo(
-    () =>
-      submissions.filter(
-        (s) =>
-          (!state || s.state === state) &&
-          (!form || s.form === form) &&
-          (!period || s.period === period) &&
-          (!q || `${s.id} ${s.owner}`.toLowerCase().includes(q.toLowerCase())),
-      ),
-    [state, form, period, q],
+  const shown = useMemo(
+    () => rows.filter((r) => (!year || String(r.year) === year) && (!state || r.state === state) && (!q || `${r.id} ${r.ministry}`.toLowerCase().includes(q.toLowerCase()))),
+    [rows, year, state, q],
   );
 
   function exportCsv() {
-    const header = ["submission_id", "form_code", "project_code", "period", "state", "revision", "owner", "submitted_at"];
-    const lines = rows.map((s) => [s.id, s.form, s.project, s.period, s.state, String(s.revision), s.owner, s.submitted].map(csvCell).join(","));
-    const manifest = `# export generated ${new Date().toISOString()}; filters state=${state || "any"} form=${form || "any"} period=${period || "any"} search=${q || "none"}; rows=${rows.length}; FICTIONAL DATA`;
-    const blob = new Blob([manifest + "\n" + header.join(",") + "\n" + lines.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
+    const header = ["submission_id", "reporting_year", "ministry", "state", "submitted", "indicators", "reported", "evidence_files", "blocking_flags", "warnings", "illustrative"];
+    const lines = shown.map((r) => [r.id, r.year, r.ministry, r.state, r.submitted, r.indicators, r.reported, r.evidence, r.blocking, r.warnings, r.illustrative].map((v) => csvCell(String(v))).join(","));
+    const manifest = `# generated ${new Date().toISOString()}; filters year=${year || "any"} state=${state || "any"} search=${q || "none"}; rows=${shown.length}`;
+    const url = URL.createObjectURL(new Blob([manifest + "\n" + header.join(",") + "\n" + lines.join("\n")], { type: "text/csv" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "submissions-export.csv";
+    a.download = "cashew-submissions.csv";
     a.click();
     URL.revokeObjectURL(url);
   }
 
   return (
     <>
-      <form className="card" style={{ marginBottom: 16, display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", alignItems: "end" }} onSubmit={(e) => e.preventDefault()} role="search" aria-label="Filter submissions">
-        <div className="field" style={{ margin: 0 }}>
-          <label htmlFor="f-q">Search</label>
-          <input id="f-q" type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ID or collector" />
+      <form className="card filters" onSubmit={(e) => e.preventDefault()} role="search" aria-label="Filter submissions">
+        <div className="field">
+          <label htmlFor="s-q">Search</label>
+          <input id="s-q" type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ID or ministry" />
         </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label htmlFor="f-state">State</label>
-          <select id="f-state" value={state} onChange={(e) => setState(e.target.value)}>
-            <option value="">Any state</option>
-            {states.map((s) => <option key={s}>{s}</option>)}
+        <div className="field">
+          <label htmlFor="s-year">Reporting year</label>
+          <select id="s-year" value={year} onChange={(e) => setYear(e.target.value)}>
+            <option value="">Any</option>
+            <option>2025</option>
+            <option>2026</option>
           </select>
         </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label htmlFor="f-form">Form</label>
-          <select id="f-form" value={form} onChange={(e) => setForm(e.target.value)}>
-            <option value="">Any form</option>
-            {forms.map((f) => <option key={f.code} value={f.code}>{f.title}</option>)}
-          </select>
-        </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label htmlFor="f-period">Period</label>
-          <select id="f-period" value={period} onChange={(e) => setPeriod(e.target.value)}>
-            <option value="">Any period</option>
-            <option>2026-Q2</option>
-            <option>2026-Q3</option>
+        <div className="field">
+          <label htmlFor="s-state">State</label>
+          <select id="s-state" value={state} onChange={(e) => setState(e.target.value)}>
+            <option value="">Any</option>
+            {["Draft", "Submitted", "In review", "Returned", "Approved", "Rejected"].map((s) => <option key={s}>{s}</option>)}
           </select>
         </div>
       </form>
-
       <div className="btn-row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-        <p className="small" role="status" style={{ margin: 0 }}>{rows.length} of {submissions.length} submissions</p>
-        <button type="button" className="btn btn--secondary" onClick={exportCsv} disabled={rows.length === 0}>Export filtered CSV</button>
+        <p className="small" role="status" style={{ margin: 0 }}>{shown.length} of {rows.length} submissions</p>
+        <button type="button" className="btn btn--secondary" onClick={exportCsv} disabled={!shown.length}>Export filtered CSV</button>
       </div>
-
-      {rows.length === 0 ? (
-        <div className="notice"><p>No submissions match these filters. <button type="button" className="btn btn--secondary" onClick={() => { setQ(""); setState(""); setForm(""); setPeriod(""); }}>Clear filters</button></p></div>
+      {shown.length === 0 ? (
+        <div className="notice"><p>No submissions match these filters.</p></div>
       ) : (
-        <div className="table-wrap" role="region" aria-label="Submissions table" tabIndex={0}>
+        <div className="table-wrap" role="region" aria-label="Submissions" tabIndex={0}>
           <table>
-            <caption>Submissions</caption>
+            <caption>Ministry submissions</caption>
             <thead>
               <tr>
-                <th scope="col">ID</th>
-                <th scope="col">Form</th>
-                <th scope="col">Collector</th>
-                <th scope="col">Period</th>
-                <th scope="col" className="num">Rev.</th>
-                <th scope="col">Submitted</th>
-                <th scope="col">State</th>
-                <th scope="col">Quality flags</th>
+                <th scope="col">ID</th><th scope="col">Year</th><th scope="col">Ministry</th><th scope="col">Submitted</th>
+                <th scope="col" className="num">Reported</th><th scope="col" className="num">Evidence</th><th scope="col">Flags</th><th scope="col">State</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((s) => (
-                <tr key={s.id}>
-                  <td className="nowrap"><Link href={`/reviews/${s.id}`}>{s.id}</Link></td>
-                  <td>{forms.find((f) => f.code === s.form)?.title}</td>
-                  <td>{s.owner}</td>
-                  <td className="nowrap">{s.period}</td>
-                  <td className="num">r{s.revision}</td>
-                  <td className="nowrap">{s.submitted}</td>
-                  <td><StatusTag status={s.state} /></td>
-                  <td className="small">{s.flags.length ? s.flags.join("; ") : "—"}</td>
+              {shown.map((r) => (
+                <tr key={r.id}>
+                  <td className="nowrap"><Link href={`/reviews/${r.id}`}>{r.id}</Link>{r.illustrative && <div><StatusTag status="Illustrative" /></div>}</td>
+                  <td>{r.year}</td>
+                  <td>{r.ministry}</td>
+                  <td className="nowrap">{r.submitted}</td>
+                  <td className="num">{r.reported}/{r.indicators}</td>
+                  <td className="num">{r.evidence}/{r.indicators}</td>
+                  <td className="small">
+                    {r.blocking > 0 && <StatusTag status="Rejected" label={`${r.blocking} blocking`} />} {r.warnings > 0 && <StatusTag status="Returned" label={`${r.warnings} warnings`} />}
+                    {r.blocking + r.warnings === 0 && "—"}
+                  </td>
+                  <td><StatusTag status={r.state} /></td>
                 </tr>
               ))}
             </tbody>

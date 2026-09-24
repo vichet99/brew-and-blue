@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHead, ReleaseTag } from "@/components/ui";
 import { sitemap } from "@/lib/sitemap";
-import { policies, programmesOf, projectsOf } from "@/lib/data";
+import { actionsJoinedBy, actionsLedBy, indicatorsOfMinistry, ministries, policy } from "@/lib/cashew";
 
 export const metadata: Metadata = { title: "Sitemap" };
 
@@ -29,31 +29,43 @@ export default function SitemapPage() {
       </div>
 
       <h2>The results chain at a glance</h2>
-      <p>Ownership runs top-down. Contribution links show extra support between levels but never add figures automatically.</p>
+      <p>One policy, one programme per ministry, one project per policy action. The lead ministry owns an action; ministries on joint actions report their own indicators, and nothing is counted twice. Open a ministry to see its actions.</p>
       <ul className="tree" aria-label="Policy, programme and project hierarchy">
-        {policies.map((pol) => (
-          <li key={pol.code}>
-            <strong>Policy</strong> · <Link href={`/policies/${pol.code}`}>{pol.name}</Link>
-            <ul>
-              {programmesOf(pol.code).map((prg) => (
-                <li key={prg.code}>
-                  <strong>Programme</strong> · <Link href={`/programmes/${prg.code}`}>{prg.name}</Link>
-                  <ul>
-                    {projectsOf(prg.code).map((prj) => (
-                      <li key={prj.code}>
-                        <strong>Project</strong> · <Link href={`/projects/${prj.code}`}>{prj.name}</Link>
-                        {prj.contributesTo.length > 0 && (
-                          <span className="small muted"> — also contributes to {prj.contributesTo.map((c) => c.programme).join(", ")}</span>
-                        )}
-                        <span className="small muted"> → activities → indicators → forms → submissions</span>
-                      </li>
-                    ))}
-                  </ul>
+        <li>
+          <strong>Policy</strong> · <Link href={`/policies/${policy.code}`}>{policy.name}</Link>{" "}
+          <span className="small muted">3 goals · 13 outcome indicators</span>
+          <ul>
+            {ministries.map((m) => {
+              const led = actionsLedBy(m.code);
+              const joined = actionsJoinedBy(m.code);
+              return (
+                <li key={m.code}>
+                  <details>
+                    <summary style={{ cursor: "pointer", minHeight: 32 }}>
+                      <strong>Programme</strong> · {m.short}{" "}
+                      <span className="small muted">
+                        {led.length} action{led.length === 1 ? "" : "s"} led{joined.length ? `, ${joined.length} joint` : ""} · {indicatorsOfMinistry(m.code).length} indicators
+                      </span>
+                    </summary>
+                    <p className="small" style={{ margin: "4px 0" }}><Link href={`/programmes/${m.code}`}>{m.name}</Link></p>
+                    <ul>
+                      {led.map((a) => (
+                        <li key={a.code} className="small">
+                          <strong>Project</strong> · <Link href={`/projects/${a.code}`}>Action {a.no}</Link>
+                          {a.ministries.length > 1 && <span className="muted"> (with {a.ministries.slice(1).map((c) => ministries.find((x) => x.code === c)?.short).join(", ")})</span>}
+                          <span className="muted"> → indicators → Kobo questions → submissions</span>
+                        </li>
+                      ))}
+                      {joined.map((a) => (
+                        <li key={a.code} className="small muted">Contributes to <Link href={`/projects/${a.code}`}>Action {a.no}</Link></li>
+                      ))}
+                    </ul>
+                  </details>
                 </li>
-              ))}
-            </ul>
-          </li>
-        ))}
+              );
+            })}
+          </ul>
+        </li>
       </ul>
 
       <h2>All pages ({pageCount})</h2>
@@ -109,7 +121,7 @@ export default function SitemapPage() {
           <tbody>
             <tr>
               <td>R0 local demo</td>
-              <td>Fictional policy, programmes, projects, four indicator types, four roles; submit, return, approve.</td>
+              <td>Example workspace: National Cashew Policy with 17 ministry programmes, 44 actions, 121 indicators, Kobo questions, dashboards and a review workflow.</td>
               <td>This clickable prototype (UI only, M1)</td>
             </tr>
             <tr>

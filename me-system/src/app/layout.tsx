@@ -2,12 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { MobileNav, SideNav } from "@/components/SideNav";
-import { workspace } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: { default: "Monitoring and Evaluation System", template: "%s · Monitoring and Evaluation System" },
   description:
-    "Monitoring and Evaluation System: connect policies and programmes to projects, indicators, evidence and approved reports. Prototype with fictional data.",
+    "Monitoring and Evaluation System prototype, shown with the National Cashew Policy 2022–2027 as an example workspace.",
   robots: { index: false, follow: false },
 };
 
@@ -26,6 +25,11 @@ function Mark() {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-GB">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;700&display=swap" rel="stylesheet" />
+      </head>
       <body>
         <a className="skip-link" href="#main">Skip to main content</a>
         <header className="site-header">
@@ -38,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </span>
             </Link>
             <div className="site-header__meta">
-              <span className="workspace-pill">{workspace.name}</span>
+              <span className="workspace-pill">Example: National Cashew Policy 2022–2027</span>
               <Link href="/signin">Sign out</Link>
             </div>
           </div>
@@ -46,8 +50,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="proto-banner" role="note">
           <div className="proto-banner__inner">
             <strong>PROTOTYPE</strong>
-            All names, figures and dates are fictional test data. Actions are simulated in your browser and are not saved to a server.{" "}
-            <Link href="/sitemap">See the sitemap</Link>.
+            Example workspace built from MoC&apos;s Cashew Policy M&amp;E workbooks (reporting year 2025) and the MTR final draft. Records marked
+            &ldquo;Illustrative&rdquo; are invented for the demo. Actions are simulated in your browser and not saved.{" "}
+            <Link href="/sitemap">Sitemap</Link> · <Link href="/admin#sources">Data sources</Link>.
           </div>
         </div>
         <MobileNav />
@@ -65,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <li><Link href="/admin">Administration</Link></li>
             </ul>
             <p className="muted small" style={{ margin: 0 }}>
-              Monitoring and Evaluation System · M1 UI prototype · Specification v1.0 (24 Sep 2026)
+              Monitoring and Evaluation System · UI prototype · Example data: National Cashew Policy M&E (MoC)
             </p>
           </div>
         </footer>

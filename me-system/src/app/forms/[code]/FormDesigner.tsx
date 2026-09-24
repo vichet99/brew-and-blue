@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { FormDef, FormQuestion } from "@/lib/data";
+import type { FormDef, FormQuestion } from "@/lib/workflow";
 
 const palette: { type: FormQuestion["type"]; label: string }[] = [
   { type: "short_text", label: "Short text" },
@@ -170,7 +170,7 @@ export function FormDesigner({ form }: { form: FormDef }) {
               <p className="small">
                 Added: {changed.added.join(", ") || "none"} · Changed: {changed.edited.join(", ") || "none"} · Removed: {changed.removed.join(", ") || "none"}
               </p>
-              <p className="small">Affected indicator mappings: IND-01 uses <code>attendance</code>. Changing a question&apos;s meaning needs a new ID.</p>
+              <p className="small">Affected outcome indicators: PR1 uses <code>installed_capacity_tpy</code> and <code>rcn_processed_t</code>; S3 uses the manager counts. Changing a question&apos;s meaning needs a new ID.</p>
               <div className="btn-row">
                 <button
                   type="button"
