@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ReportButton, RoleOnly } from "@/components/RoleProvider";
 import { Breadcrumbs, Meta, PageHead, StatusTag, Table } from "@/components/ui";
 import {
   actionByNo,
@@ -42,7 +43,7 @@ export default async function MinistryProgrammePage({ params }: { params: Promis
     <>
       <Breadcrumbs items={[{ label: "Policy", href: `/policies/${policy.code}` }, { label: "Ministry programmes", href: "/programmes" }, { label: m.short }]} />
       <PageHead caption={`Programme · ${policy.name}`} title={`${m.name} (${m.short})`}>
-        <Link className="btn" href={`/collect/cashew-indicator-report?ministry=${m.code}`}>Fill {m.short} report</Link>
+        <ReportButton ministry={m.code}>Fill {m.short} report</ReportButton>
       </PageHead>
       <p className="km muted" lang="km">{m.nameKm}</p>
       <Meta
@@ -103,6 +104,7 @@ export default async function MinistryProgrammePage({ params }: { params: Promis
         </tbody>
       </Table>
 
+      <RoleOnly any={["view_all_submissions", "view_own_submissions"]}>
       <h2>Reporting</h2>
       <ul>
         {subs.map((s) => (
@@ -115,6 +117,7 @@ export default async function MinistryProgrammePage({ params }: { params: Promis
           <Link href="/forms/cashew-indicator-report">View form structure</Link>
         </li>
       </ul>
+      </RoleOnly>
     </>
   );
 }

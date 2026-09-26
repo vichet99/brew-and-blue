@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { RoleOnly } from "@/components/RoleProvider";
 import { Breadcrumbs, PageHead, Table } from "@/components/ui";
 import { actionIndicators, getMinistry, koboForm } from "@/lib/cashew";
 import { forms, processorSurvey } from "@/lib/workflow";
@@ -21,7 +22,9 @@ function XlsFormStructure() {
     <>
       <Breadcrumbs items={[{ label: "Kobo forms", href: "/forms" }, { label: koboForm.title }]} />
       <PageHead caption={`XLSForm · form_id ${koboForm.formId} · version ${koboForm.version} · default language ${koboForm.defaultLanguage}`} title={koboForm.title}>
-        <Link className="btn" href="/collect/cashew-indicator-report">Fill in</Link>
+        <RoleOnly any={["submit_report"]}>
+          <Link className="btn" href="/collect/cashew-indicator-report">Fill in</Link>
+        </RoleOnly>
       </PageHead>
 
       <h2>Page 1: respondent information</h2>

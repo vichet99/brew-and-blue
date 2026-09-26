@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { MyWork } from "@/components/MyWork";
+import { RoleOnly } from "@/components/RoleProvider";
 import { PageHead, StatusTag, Table } from "@/components/ui";
 import {
   actionCounts,
   actions,
   calendar,
   dataNotes,
+  indicatorsOfMinistry,
   ministries,
   ministryCompletion,
   mtr,
@@ -22,12 +25,26 @@ export default function OverviewPage() {
     .map((m) => ({ m, c: ministryCompletion(m.code) }))
     .sort((a, b) => (a.c.completion ?? 0) - (b.c.completion ?? 0))
     .slice(0, 3);
+  const byMinistry = Object.fromEntries(
+    ministries.map((m) => [
+      m.code,
+      {
+        short: m.short,
+        name: m.name,
+        completion: ministryCompletion(m.code).completion,
+        indicators: indicatorsOfMinistry(m.code).length,
+        submissions: submissions.filter((x) => x.ministry === m.code).map((x) => ({ id: x.id, state: x.state, illustrative: x.illustrative })),
+      },
+    ]),
+  );
   const limited = actions.filter((a) => (a.y2025.avgCappedPct ?? 0) < thresholdFor(2025).largely);
 
   return (
     <>
       <PageHead caption={`${policy.name} · Example workspace`} title="Overview">
-        <Link className="btn" href="/collect/cashew-indicator-report">Fill ministry report</Link>
+        <RoleOnly any={["submit_report"]}>
+          <Link className="btn" href="/collect/cashew-indicator-report">Fill ministry report</Link>
+        </RoleOnly>
         <Link className="btn btn--secondary" href="/reports/actions">Policy Actions Dashboard</Link>
       </PageHead>
 
@@ -46,6 +63,7 @@ export default function OverviewPage() {
       </div>
 
       <div className="grid grid--2">
+        <RoleOnly any={["review"]} fallback={<MyWork byMinistry={byMinistry} />}>
         <section className="card card--accent" aria-labelledby="tasks-h">
           <h2 id="tasks-h" style={{ marginTop: 0, fontSize: "1.25rem" }}>Tasks for the M&amp;E Secretariat</h2>
           <ul>
@@ -61,6 +79,7 @@ export default function OverviewPage() {
             <li>January 2027: re-deploy the Kobo form for reporting year 2026.</li>
           </ul>
         </section>
+        </RoleOnly>
         <section className="card card--accent" style={{ borderTopColor: "var(--red)" }} aria-labelledby="attention-h">
           <h2 id="attention-h" style={{ marginTop: 0, fontSize: "1.25rem" }}>Needs attention</h2>
           <p className="small muted" style={{ marginBottom: 8 }}>Lowest ministry completion, 2025:</p>

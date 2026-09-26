@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRole } from "@/components/RoleProvider";
 import { StatusTag } from "@/components/ui";
+import { can, canDecide, canSeeSubmission, getRole } from "@/lib/roles";
 import { statusWith, type Threshold } from "@/lib/rules";
 
 interface Row {
@@ -31,6 +33,7 @@ interface Sub {
   reviewNote: string;
   ministry: string;
   ministryShort: string;
+  ministryCode: string;
 }
 
 const checks = [
@@ -45,7 +48,8 @@ const show = (v: number | string | null) =>
 
 export function ReviewPanel({ submission: s, rows, flags, threshold }: { submission: Sub; rows: Row[]; flags: { level: string; text: string }[]; threshold: Threshold }) {
   const [state, setState] = useState(s.state);
-  const [actor, setActor] = useState<"reviewer" | "submitter">("reviewer");
+  const { role, ministry: myMinistry, ready } = useRole();
+  const [enteredByMe, setEnteredByMe] = useState(false);
   const [mode, setMode] = useState<null | "approve" | "return" | "reject">(null);
   const [reason, setReason] = useState("");
   const [ticked, setTicked] = useState<string[]>([]);
@@ -56,7 +60,8 @@ export function ReviewPanel({ submission: s, rows, flags, threshold }: { submiss
 
   function act() {
     setError("");
-    if (actor === "submitter" && mode === "approve") return setError("You entered this submission, so you cannot approve it. Another MoC reviewer must decide.");
+    const decision = canDecide(role, mode === "approve" && enteredByMe);
+    if (!decision.ok) return setError(decision.reason ?? "Not allowed.");
     if ((mode === "return" || mode === "reject") && reason.trim().length < 10) return setError("Write a specific query of at least 10 characters so the ministry knows what to fix.");
     if (mode === "approve" && blocking.length) return setError(`${blocking.length} blocking flag(s) are open. Return the submission instead.`);
     if (mode === "approve" && ticked.length < checks.length) return setError("Complete all four verification checks before approving.");
@@ -66,6 +71,17 @@ export function ReviewPanel({ submission: s, rows, flags, threshold }: { submiss
     setMode(null);
     setReason("");
   }
+
+  if (ready && !canSeeSubmission(role, myMinistry, s.ministryCode)) {
+    return (
+      <div className="notice notice--error" role="alert">
+        <h1 style={{ fontSize: "1.75rem" }}>You don&apos;t have access to this submission</h1>
+        <p>You are viewing as <strong>{getRole(role).name}</strong>. {role === "focal" ? "Focal points see only their own ministry's submissions." : "Submissions are visible to the M&E team only; the Committee sees approved dashboards."}</p>
+        <p><Link href="/">Go to your overview</Link></p>
+      </div>
+    );
+  }
+  const reviewer = can(role, "review");
 
   return (
     <>
@@ -138,18 +154,24 @@ export function ReviewPanel({ submission: s, rows, flags, threshold }: { submiss
 
         <aside className="card" aria-labelledby="dec-h">
           <h2 id="dec-h" style={{ marginTop: 0 }}>Decision</h2>
-          <fieldset className="field">
-            <legend className="small">Simulate acting as</legend>
-            <label className="choice"><input type="radio" name="actor" checked={actor === "reviewer"} onChange={() => setActor("reviewer")} /> MoC reviewer</label>
-            <label className="choice"><input type="radio" name="actor" checked={actor === "submitter"} onChange={() => setActor("submitter")} /> The person who entered it</label>
-          </fieldset>
-          {!decidable ? (
+          <p className="small muted">Viewing as <strong>{getRole(role).name}</strong>.</p>
+          {!reviewer ? (
+            <div className="notice">
+              <p>Only reviewers and the Administrator decide on submissions.</p>
+              {role === "focal" && state === "Returned" && <p>MoC has sent a query. Correct the values in the <Link href={`/collect/cashew-indicator-report?ministry=${s.ministryCode}`}>report form</Link> and resubmit within 5 working days.</p>}
+              <Link href="/submissions">Back to submissions</Link>
+            </div>
+          ) : !decidable ? (
             <div className="notice">
               <p>This submission is <strong>{state}</strong> and locked. Corrections create a new revision.</p>
               <Link href="/reviews">Back to reviews</Link>
             </div>
           ) : (
             <>
+              <label className="choice small" style={{ marginBottom: 8 }}>
+                <input type="checkbox" checked={enteredByMe} onChange={(e) => setEnteredByMe(e.target.checked)} />
+                Simulate: I entered this submission myself
+              </label>
               <fieldset className="field">
                 <legend>Verification checks</legend>
                 {checks.map((c) => (

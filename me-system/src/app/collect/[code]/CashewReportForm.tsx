@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { LangToggle } from "@/components/KoboQuestions";
+import { useRole } from "@/components/RoleProvider";
 import { Icon, StatusTag } from "@/components/ui";
 import { koboPercentage, statusWith, type Method, type Threshold } from "@/lib/rules";
 
@@ -85,10 +86,18 @@ export function CashewReportForm({
   const t = T[lang];
   const km = lang === "km" ? "km" : undefined;
 
+  const { role, ministry: myMinistry, ready } = useRole();
+  const locked = role === "focal";
+
   useEffect(() => {
+    if (!ready) return;
+    if (locked) {
+      setMinistry(myMinistry); // a focal point reports for their own ministry only
+      return;
+    }
     const m = new URLSearchParams(window.location.search).get("ministry");
     if (m && ministries.some((x) => x.code === m)) setMinistry(m);
-  }, [ministries]);
+  }, [ministries, ready, locked, myMinistry]);
 
   const mine = useMemo(() => indicators.filter((i) => i.ministry === ministry), [indicators, ministry]);
   const done = mine.filter((i) => answers[i.id]?.value).length;
@@ -170,10 +179,11 @@ export function CashewReportForm({
           <label htmlFor="f-ministry" lang={lang} className={km}>{t.ministry}</label>
           <p className="hint" lang={lang}>{t.ministryHint}</p>
           {errors.ministry && <p className="error-message">{errors.ministry}</p>}
-          <select id="f-ministry" value={ministry} onChange={(e) => { setMinistry(e.target.value); setErrors({}); }}>
+          <select id="f-ministry" value={ministry} disabled={locked} aria-describedby={locked ? "f-ministry-lock" : undefined} onChange={(e) => { setMinistry(e.target.value); setErrors({}); }}>
             <option value="">Select…</option>
             {ministries.map((m) => <option key={m.code} value={m.code}>{m.short}: {lang === "km" ? m.nameKm : m.name}</option>)}
           </select>
+          {locked && <p className="hint" id="f-ministry-lock" style={{ marginTop: 4 }}>Locked to your ministry (focal point). The Administrator can report for any ministry.</p>}
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
           <label htmlFor="f-year" lang={lang} className={km}>{t.year}</label>

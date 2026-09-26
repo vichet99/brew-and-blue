@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRole } from "@/components/RoleProvider";
 import { StatusTag } from "@/components/ui";
+import { canSeeSubmission } from "@/lib/roles";
 
 interface Row {
   id: string;
   year: number;
   ministry: string;
+  ministryCode: string;
   state: string;
   submitted: string;
   indicators: number;
@@ -24,7 +27,9 @@ function csvCell(v: string) {
   return `"${safe.replace(/"/g, '""')}"`;
 }
 
-export function SubmissionTable({ rows }: { rows: Row[] }) {
+export function SubmissionTable({ rows: allRows }: { rows: Row[] }) {
+  const { role, ministry } = useRole();
+  const rows = useMemo(() => allRows.filter((r) => canSeeSubmission(role, ministry, r.ministryCode)), [allRows, role, ministry]);
   const [year, setYear] = useState("");
   const [state, setState] = useState("");
   const [q, setQ] = useState("");
@@ -68,6 +73,7 @@ export function SubmissionTable({ rows }: { rows: Row[] }) {
           </select>
         </div>
       </form>
+      {role === "focal" && <p className="notice small">You are a focal point: only your ministry&apos;s submissions are shown.</p>}
       <div className="btn-row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
         <p className="small" role="status" style={{ margin: 0 }}>{shown.length} of {rows.length} submissions</p>
         <button type="button" className="btn btn--secondary" onClick={exportCsv} disabled={!shown.length}>Export filtered CSV</button>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { fmtDate, PageHead, StatusTag, Table } from "@/components/ui";
 import { mtr } from "@/lib/cashew";
+import { RoleOnly } from "@/components/RoleProvider";
 import { SnapshotButton } from "./SnapshotButton";
 
 export const metadata: Metadata = { title: "Dashboards and reports" };
@@ -16,7 +17,9 @@ export default function ReportsPage() {
   return (
     <>
       <PageHead caption="UI-11" title="Dashboards and reports">
-        <SnapshotButton />
+        <RoleOnly any={["publish_reports"]}>
+          <SnapshotButton />
+        </RoleOnly>
       </PageHead>
       <div className="grid grid--3">
         {cards.map((c) => (

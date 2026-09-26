@@ -13,6 +13,7 @@ export default function SubmissionsPage() {
       id: s.id,
       year: s.year,
       ministry: ministryShort(s.ministry),
+      ministryCode: s.ministry,
       state: s.state,
       submitted: s.submitted,
       indicators: s.rows.length,

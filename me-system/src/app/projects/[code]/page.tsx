@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { KoboQuestions } from "@/components/KoboQuestions";
+import { ReportButton } from "@/components/RoleProvider";
 import { Tabs } from "@/components/Tabs";
 import { Breadcrumbs, Meta, PageHead, StatusTag, Table } from "@/components/ui";
 import {
@@ -95,7 +96,7 @@ export default async function ActionPage({ params }: { params: Promise<{ code: s
         ]}
       />
       <PageHead caption={`${a.code} · ${clusterLabel[a.cluster]} cluster · ${policy.name}`} title={`Action ${a.no}`}>
-        <Link className="btn" href={`/collect/cashew-indicator-report?ministry=${a.lead}`}>Report on this action</Link>
+        <ReportButton ministry={a.lead}>Report on this action</ReportButton>
       </PageHead>
       <p className="lead">{a.title}</p>
       <Meta

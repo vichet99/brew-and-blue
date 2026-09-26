@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { ResponsiveTables } from "@/components/ResponsiveTables";
+import { PageGate, RoleProvider, RoleSwitcher } from "@/components/RoleProvider";
 import { MobileNav, SideNav } from "@/components/SideNav";
+import { ministries } from "@/lib/cashew";
 
 export const metadata: Metadata = {
   title: { default: "Monitoring and Evaluation System", template: "%s · Monitoring and Evaluation System" },
@@ -32,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;700&display=swap" rel="stylesheet" />
       </head>
       <body>
+        <RoleProvider ministries={ministries.map(({ code, short, name }) => ({ code, short, name }))}>
         <a className="skip-link" href="#main">Skip to main content</a>
         <header className="site-header">
           <div className="site-header__inner">
@@ -45,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <div className="site-header__meta">
               <span className="workspace-pill">Example: National Cashew Policy 2022–2027</span>
+              <RoleSwitcher />
               <Link href="/signin">Sign out</Link>
             </div>
             <MobileNav />
@@ -66,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="layout">
           <SideNav />
           <main id="main" className="main" tabIndex={-1}>
-            {children}
+            <PageGate>{children}</PageGate>
           </main>
           <ResponsiveTables />
         </div>
@@ -82,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </p>
           </div>
         </footer>
+        </RoleProvider>
       </body>
     </html>
   );

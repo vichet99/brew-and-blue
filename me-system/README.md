@@ -42,6 +42,20 @@ Status rule (workbook sheet 10_STATUS_THRESHOLDS): fully achieved at 100% of the
 target; largely achieved from 40% (2025), 70% (2026), 90% (2027). The Policy Actions
 Dashboard can re-grade the 2025 values with the 2026 or 2027 rule.
 
+## Pilot roles
+
+Decided 26 Sep 2026. Switch with **Viewing as** in the header (in the menu on phones) or the quick sign-in buttons on `/signin`.
+Full matrix at `/roles`; rules in `src/lib/roles.ts` (tested in `tests/roles.test.ts`).
+
+| Role | Scope | Can | Cannot |
+|---|---|---|---|
+| Administrator (M&E manager) | Whole workspace | Set up actions, indicators, targets, forms; manage users; run the cycle; publish; **may also review** | Approve a submission they entered themselves |
+| Reviewer | Assigned ministries (pilot: all) | Verify, query, approve or reject submissions | Change reported values; approve own entries; change setup |
+| Ministry focal point | Own ministry | Fill and submit the annual report; see own submissions and all approved dashboards | See other ministries' submissions; approve |
+| Viewer (Committee) | Whole policy | Approved dashboards: policy totals **and** each ministry's detail | See drafts, submissions or evidence; enter or approve data |
+
+In this prototype the role only changes what the interface shows. Real enforcement (sign-in, server checks, database rules) comes in milestone M2.
+
 ## Sitemap
 
 Organised by the level a person manages. Each level answers one question. Live version: `/sitemap`.

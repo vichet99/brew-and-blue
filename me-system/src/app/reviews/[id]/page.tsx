@@ -35,6 +35,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
           reviewNote: s.reviewNote ?? "",
           ministry: `${m.name} (${m.short})`,
           ministryShort: m.short,
+          ministryCode: m.code,
         }}
         threshold={thresholdFor(s.year)}
         flags={qualityFlags(s)}

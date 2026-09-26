@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { useRole } from "@/components/RoleProvider";
+import type { RoleId } from "@/lib/roles";
 
 type State = "form" | "error" | "expired" | "no-workspace" | "signed-in";
 
@@ -24,6 +27,14 @@ export default function SignInPage() {
   }
 
   const hasErrors = Object.keys(errors).length > 0;
+  const { setRole } = useRole();
+  const router = useRouter();
+  const quick: { label: string; role: RoleId; ministry?: string }[] = [
+    { label: "Administrator (M&E manager)", role: "admin" },
+    { label: "Reviewer", role: "reviewer" },
+    { label: "MAFF focal point", role: "focal", ministry: "maff" },
+    { label: "Committee viewer", role: "viewer" },
+  ];
 
   return (
     <div className="signin">
@@ -80,6 +91,25 @@ export default function SignInPage() {
           </button>
         </div>
       </form>
+
+      <h2>Quick demo sign-in</h2>
+      <p className="small">Choose a pilot role to see the site as that person. You can switch at any time with &ldquo;Viewing as&rdquo;.</p>
+      <div className="grid grid--2" style={{ marginBottom: 24 }}>
+        {quick.map((q) => (
+          <button
+            key={q.label}
+            type="button"
+            className="btn btn--secondary"
+            onClick={() => {
+              setRole(q.role, q.ministry);
+              router.push("/");
+            }}
+          >
+            Sign in as {q.label}
+          </button>
+        ))}
+      </div>
+      <p className="small"><Link href="/roles">What can each role do?</Link></p>
 
       <h2>Demo accounts</h2>
       <p className="small">

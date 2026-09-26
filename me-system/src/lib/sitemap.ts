@@ -248,6 +248,7 @@ export const primaryNav: { label: string; href: string; match: string[] }[] = [
 
 export const secondaryNav: { label: string; href: string; match: string[] }[] = [
   { label: "Sitemap", href: "/sitemap", match: ["/sitemap"] },
+  { label: "Roles and access", href: "/roles", match: ["/roles"] },
   { label: "Brand guide", href: "/brand", match: ["/brand"] },
   { label: "Sign in", href: "/signin", match: ["/signin"] },
 ];

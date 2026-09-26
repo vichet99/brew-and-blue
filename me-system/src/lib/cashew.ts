@@ -196,13 +196,6 @@ export const calendar = [
   { month: "May (week 2)", activity: "Annual report circulated to the Council of Ministers and partners.", owner: "MoC" },
 ];
 
-export const roles = [
-  { role: "M&E Secretariat (MoC)", duty: "Owns the system; maintains the Kobo form and workbooks; runs the annual cycle, verifies data, produces the dashboard, briefs the Committee.", platformRole: "Workspace administrator + M&E reviewer" },
-  { role: "Line-ministry M&E focal point", duty: "Fills the Kobo form once a year for the ministry's assigned indicators, attaches evidence, answers MoC queries within 5 working days.", platformRole: "Project officer / data collector (own ministry only)" },
-  { role: "Inter-Ministerial M&E Committee", duty: "Approves the calendar and the final report, ratifies status grades, decides corrective action.", platformRole: "Viewer (approved dashboards and reports)" },
-  { role: "Processors (outcome level)", duty: "Fill the Kobo Processor Survey once a year for their plant.", platformRole: "Data collector (processor survey only)" },
-];
-
 // ---- lookups --------------------------------------------------------------
 
 const ministryMap = new Map(ministries.map((m) => [m.code, m]));

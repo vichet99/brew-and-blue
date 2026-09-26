@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { RoleOnly } from "@/components/RoleProvider";
 import { PageHead, StatusTag } from "@/components/ui";
 import { actionIndicators, koboForm, ministries } from "@/lib/cashew";
 import { forms, processorSurvey } from "@/lib/workflow";
@@ -22,8 +23,16 @@ export default function FormsPage() {
             <p className="small">Filled by: {f.who}</p>
             <p className="btn-row" style={{ margin: 0 }}>
               <StatusTag status="Published" />
-              <Link className="btn" href={`/collect/${f.code}`}>Fill in</Link>
-              <Link className="btn btn--secondary" href={`/forms/${f.code}`}>{f.code === "processor-survey" ? "Open designer" : "View structure"}</Link>
+              <RoleOnly any={[f.code === "processor-survey" ? "manage_setup" : "submit_report"]}>
+                <Link className="btn" href={`/collect/${f.code}`}>Fill in</Link>
+              </RoleOnly>
+              {f.code === "processor-survey" ? (
+                <RoleOnly any={["manage_setup"]} fallback={<span className="small muted">Designer: Administrator only</span>}>
+                  <Link className="btn btn--secondary" href={`/forms/${f.code}`}>Open designer</Link>
+                </RoleOnly>
+              ) : (
+                <Link className="btn btn--secondary" href={`/forms/${f.code}`}>View structure</Link>
+              )}
             </p>
           </article>
         ))}
