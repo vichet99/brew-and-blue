@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Roles and access" };
 
 const matrix: { perm: Permission; label: string }[] = [
   { perm: "view_dashboards", label: "See approved dashboards: policy totals and each ministry's detail" },
-  { perm: "view_forms", label: "See Kobo forms and questions" },
+  { perm: "view_forms", label: "See data forms and questions" },
   { perm: "submit_report", label: "Fill and submit the annual ministry report" },
   { perm: "view_own_submissions", label: "See own ministry's submissions and queries" },
   { perm: "view_all_submissions", label: "See all ministries' submissions" },

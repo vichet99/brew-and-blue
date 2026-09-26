@@ -20,7 +20,7 @@ function XlsFormStructure() {
   const byId = new Map(actionIndicators.map((i) => [i.id, i]));
   return (
     <>
-      <Breadcrumbs items={[{ label: "Kobo forms", href: "/forms" }, { label: koboForm.title }]} />
+      <Breadcrumbs items={[{ label: "Data forms", href: "/forms" }, { label: koboForm.title }]} />
       <PageHead caption={`XLSForm · form_id ${koboForm.formId} · version ${koboForm.version} · default language ${koboForm.defaultLanguage}`} title={koboForm.title}>
         <RoleOnly any={["submit_report"]}>
           <Link className="btn" href="/collect/cashew-indicator-report">Fill in</Link>
@@ -99,7 +99,7 @@ export default async function FormPage({ params }: { params: Promise<{ code: str
   if (code !== processorSurvey.code) notFound();
   return (
     <>
-      <Breadcrumbs items={[{ label: "Kobo forms", href: "/forms" }, { label: processorSurvey.title }]} />
+      <Breadcrumbs items={[{ label: "Data forms", href: "/forms" }, { label: processorSurvey.title }]} />
       <PageHead caption={`UI-07 · Designer · draft of v${processorSurvey.version + 1}`} title={processorSurvey.title} />
       <div className="notice small">
         <p>Rebuilt from the column headers of the processor-survey export (outcome workbook sheet 08_RAW_KOBO); wording is illustrative.</p>

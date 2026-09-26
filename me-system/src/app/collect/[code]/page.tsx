@@ -20,7 +20,7 @@ export default async function CollectPage({ params }: { params: Promise<{ code: 
   if (code === "cashew-indicator-report") {
     return (
       <>
-        <Breadcrumbs items={[{ label: "Kobo forms", href: "/forms" }, { label: koboForm.title }]} />
+        <Breadcrumbs items={[{ label: "Data forms", href: "/forms" }, { label: koboForm.title }]} />
         <span className="caption">UI-08 · Annual ministry report · Kobo form version {koboForm.version}</span>
         <h1>{koboForm.title}</h1>
         <p className="lead">One submission per ministry per year. Deadline 31 March. The percentage is calculated as you type, using the same formula as the Kobo form.</p>
@@ -49,7 +49,7 @@ export default async function CollectPage({ params }: { params: Promise<{ code: 
   if (code !== processorSurvey.code) notFound();
   return (
     <>
-      <Breadcrumbs items={[{ label: "Kobo forms", href: "/forms" }, { label: processorSurvey.title }]} />
+      <Breadcrumbs items={[{ label: "Data forms", href: "/forms" }, { label: processorSurvey.title }]} />
       <span className="caption">UI-08 · Version {processorSurvey.version}, published {fmtDate(processorSurvey.published)} · one submission per plant per year</span>
       <h1>{processorSurvey.title}</h1>
       <CollectForm form={processorSurvey} />

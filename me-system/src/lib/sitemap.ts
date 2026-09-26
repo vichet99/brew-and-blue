@@ -171,7 +171,7 @@ export const sitemap: SiteTier[] = [
         live: true,
       },
       {
-        title: "Kobo forms",
+        title: "Data forms",
         href: "/forms",
         ui: "UI-07",
         release: "R1",
@@ -239,7 +239,7 @@ export const primaryNav: { label: string; href: string; match: string[] }[] = [
   { label: "Policy actions", href: "/projects", match: ["/projects"] },
   { label: "Results framework", href: "/results", match: ["/results"] },
   { label: "Indicators", href: "/indicators", match: ["/indicators"] },
-  { label: "Kobo forms", href: "/forms", match: ["/forms", "/collect"] },
+  { label: "Data forms", href: "/forms", match: ["/forms", "/collect"] },
   { label: "Submissions", href: "/submissions", match: ["/submissions"] },
   { label: "Reviews", href: "/reviews", match: ["/reviews"] },
   { label: "Dashboards and reports", href: "/reports", match: ["/reports"] },

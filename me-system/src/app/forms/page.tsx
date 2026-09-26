@@ -5,14 +5,14 @@ import { PageHead, StatusTag } from "@/components/ui";
 import { actionIndicators, koboForm, ministries } from "@/lib/cashew";
 import { forms, processorSurvey } from "@/lib/workflow";
 
-export const metadata: Metadata = { title: "Kobo forms" };
+export const metadata: Metadata = { title: "Data forms" };
 
 export default function FormsPage() {
   const questions = { "cashew-indicator-report": `${actionIndicators.length} indicator groups in ${ministries.length} ministry sections (${koboForm.rows} XLSForm rows)`, "processor-survey": `${processorSurvey.questions.filter((q) => q.type !== "section" && q.type !== "note").length} questions` } as Record<string, string>;
   const version = { "cashew-indicator-report": `Version ${koboForm.version}`, "processor-survey": `Version ${processorSurvey.version}` } as Record<string, string>;
   return (
     <>
-      <PageHead caption="Collection" title="Kobo forms" />
+      <PageHead caption="Collection" title="Data forms" />
       <p className="lead">Two forms feed the two monitoring levels. Both are published once and reused every year.</p>
       <div className="grid grid--2">
         {forms.map((f) => (
