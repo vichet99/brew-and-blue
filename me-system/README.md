@@ -24,8 +24,8 @@ npm run build      # production build (all 226 pages are static)
 ```
 
 Requires Node.js 22+. Stack: Next.js 16 (App Router), React 19, TypeScript, plain CSS tokens.
-No UI framework. The website doesn't use a database yet; the Supabase schema, access rules and seed are ready in
-[`supabase/`](supabase/README.md), tested locally but not yet applied to a Supabase project.
+No UI framework. The Supabase database is live (schema, access rules and Cashew data; see
+[`supabase/`](supabase/README.md)), but the website doesn't read from it yet.
 
 ## How the Cashew example maps onto the platform
 
@@ -157,7 +157,7 @@ me-system/
 
 | Implemented and verified | Simulated in the browser | Not built yet |
 |---|---|---|
-| All screens, responsive at 360 / 768 / 1440 px with no page-level horizontal scroll | Draft saving, submission receipts, file uploads | Website connected to the database, sign-in (M2). Schema, access rules and workflow are written and tested in `supabase/` |
+| All screens, responsive at 360 / 768 / 1440 px with no page-level horizontal scroll | Draft saving, submission receipts, file uploads | Website connected to the database, sign-in (M2). The Supabase database itself is live with access rules and workflow |
 | Status, completion and Kobo % rules, tested against the workbook (11 / 27 / 6, 66%) | Review approve / return / reject, form publishing, report drafts | Kobo import connector (R2) |
 | Dashboards with hover tooltips, legends and data-table alternatives | CSV export (runs locally on the shown rows) | Offline collection and evaluation register (R3) |
 

@@ -3,7 +3,10 @@
 The Monitoring and Evaluation System database for Supabase (Postgres 15+). It implements the
 Level 3 data dictionary (`docs/DATA_DICTIONARY.md`) and loads the National Cashew Policy example.
 
-Status: **ready to apply, not yet applied.** The website still reads `src/data/cashew.json`.
+Status: **live** in Supabase project `monitoring-evaluation-system` (ref `cvutbidnazfgfbeptnbz`, Singapore,
+free plan, https://cvutbidnazfgfbeptnbz.supabase.co). All four migrations and the seed were applied on 27 Sep 2026.
+Every table's fingerprint matches a local build, and action status for 2025 is 11 / 27 / 6. The website still reads
+`src/data/cashew.json`; connecting it is the next step. No user accounts exist yet (see "The first administrator").
 
 ## What's here
 
