@@ -443,7 +443,7 @@ create table answers (
   indicator_version_id uuid not null,
   value_number         numeric,
   value_choice         text check (value_choice in ('completed', 'in_progress', 'not_started')),
-  pct_of_target        numeric,                    -- always set by set_answer_pct()
+  pct_of_target        numeric,                    -- always set by answers_guard()
   narrative            text,
   challenges           text,
   not_reported_reason  text,

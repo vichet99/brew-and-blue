@@ -172,3 +172,7 @@ grant insert on submissions, submission_revisions, evidence_files, review_events
 -- Workflow columns (state, submitted_at, payload_hash, entered_by) change only
 -- through the workflow functions, so only respondent details are updatable.
 grant update (respondent_name, respondent_phone, form_version_id) on submission_revisions to authenticated;
+
+-- Tables created later are not readable by anonymous visitors unless granted.
+alter default privileges in schema public revoke all on tables from anon;
+alter default privileges in schema public revoke all on sequences from anon;

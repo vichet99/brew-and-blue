@@ -65,7 +65,7 @@ $$;
 -- Calculation (mirrors src/lib/rules.ts)
 -- ---------------------------------------------------------------------------
 create function compute_pct(method calc_method, target numeric, value_number numeric, value_choice text)
-returns numeric language sql immutable as $$
+returns numeric language sql immutable set search_path = public, pg_temp as $$
   select case
     when method = 'milestone' then
       case value_choice when 'completed' then 100 when 'in_progress' then 50 when 'not_started' then 0 end
@@ -80,7 +80,7 @@ $$;
 
 -- Status uses % capped at 100; the actual % is kept separately.
 create function status_for(pct numeric, largely numeric, fully numeric)
-returns result_status language sql immutable as $$
+returns result_status language sql immutable set search_path = public, pg_temp as $$
   select case
     when pct is null then null
     when least(pct, 100) >= fully then 'fully_achieved'::result_status
@@ -91,7 +91,7 @@ $$;
 
 -- The target in force for the end of the policy (latest current target).
 create function current_target(ind uuid) returns targets
-language sql stable as $$
+language sql stable set search_path = public, pg_temp as $$
   select * from targets where indicator_id = ind and is_current order by year desc limit 1
 $$;
 
@@ -143,7 +143,7 @@ create trigger guard before insert or update or delete on answers
 -- Frozen records
 -- ---------------------------------------------------------------------------
 -- A submitted revision may only move through workflow states.
-create function revisions_guard() returns trigger language plpgsql as $$
+create function revisions_guard() returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   if old.state <> 'draft' and (
        new.submission_id, new.revision_no, new.form_version_id, new.respondent_name, new.respondent_phone,
@@ -157,7 +157,7 @@ begin
 end $$;
 create trigger frozen before update on submission_revisions for each row execute function revisions_guard();
 
-create function form_versions_guard() returns trigger language plpgsql as $$
+create function form_versions_guard() returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   if old.published_at is not null and (new.schema_json, new.schema_hash, new.published_at) is distinct from (old.schema_json, old.schema_hash, old.published_at) then
     raise exception 'a published form version is frozen; create a new version' using errcode = 'check_violation';
@@ -166,7 +166,7 @@ begin
 end $$;
 create trigger frozen before update on form_versions for each row execute function form_versions_guard();
 
-create function report_versions_guard() returns trigger language plpgsql as $$
+create function report_versions_guard() returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   if old.state <> 'draft' and (new.snapshot_json, new.manifest_hash, new.as_of, new.published_at) is distinct from (old.snapshot_json, old.manifest_hash, old.as_of, old.published_at) then
     raise exception 'a published report version is frozen; publish a new version' using errcode = 'check_violation';
@@ -175,7 +175,7 @@ begin
 end $$;
 create trigger frozen before update on report_versions for each row execute function report_versions_guard();
 
-create function indicator_versions_guard() returns trigger language plpgsql as $$
+create function indicator_versions_guard() returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   if old.locked then
     raise exception 'indicator version % is used by results and is locked; create a new version', old.version_no
@@ -186,7 +186,7 @@ end $$;
 create trigger frozen before update on indicator_versions for each row execute function indicator_versions_guard();
 
 -- Nobody approves a revision they entered (including the Administrator).
-create function review_events_guard() returns trigger language plpgsql as $$
+create function review_events_guard() returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   if new.action = 'approved' and exists (
        select 1 from submission_revisions where id = new.revision_id and entered_by = new.actor_id) then
@@ -431,7 +431,13 @@ group by a.workspace_id, y.year, y.largely_threshold_pct, y.fully_threshold_pct,
 -- ---------------------------------------------------------------------------
 -- Function privileges: RPC only for signed-in users; helpers are internal
 -- ---------------------------------------------------------------------------
-revoke execute on all functions in schema public from public;
+-- Functions from the schema migration: fixed search_path.
+alter function touch_row() set search_path = public, pg_temp;
+alter function forbid_change() set search_path = public, pg_temp;
+alter function forbid_delete() set search_path = public, pg_temp;
+
+-- Supabase grants EXECUTE on new functions to anon and authenticated directly, not only via PUBLIC.
+revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on function app_user_id(), has_role(uuid, app_role[]), is_member(uuid), can_see_ministry(uuid, uuid),
   is_focal_for(uuid, uuid), compute_pct(calc_method, numeric, numeric, text), status_for(numeric, numeric, numeric),
   current_target(uuid)
@@ -439,3 +445,6 @@ grant execute on function app_user_id(), has_role(uuid, app_role[]), is_member(u
 grant execute on function submit_revision(uuid), start_review(uuid),
   decide_revision(uuid, review_action, text, jsonb, jsonb), new_revision(uuid)
   to authenticated;
+
+-- Functions created later are not callable by anonymous or signed-in users unless granted.
+alter default privileges in schema public revoke execute on functions from public, anon, authenticated;
