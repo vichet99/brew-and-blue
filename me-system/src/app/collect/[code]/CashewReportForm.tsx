@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition, type FormEvent } from "react";
+import { openReport, saveReport, submitReport, type DraftAnswer } from "@/app/actions/workflow";
 import { LangToggle } from "@/components/KoboQuestions";
 import { useRole } from "@/components/RoleProvider";
 import { Icon, StatusTag } from "@/components/ui";
@@ -21,6 +23,15 @@ export interface ReportIndicator {
   question: string;
   questionKm: string;
   prev: number | string | null;
+}
+
+/** The ministry's report in the database, when signed in. */
+export interface LiveReport {
+  year: number;
+  years: { year: number; status: string }[];
+  ministry: string;
+  report: { code: string; revisionId: string; revisionNo: number; state: string; editable: boolean } | null;
+  answers: Record<string, Answer>;
 }
 
 interface Answer {
@@ -71,14 +82,20 @@ export function CashewReportForm({
   ministries,
   indicators,
   threshold,
+  live,
 }: {
   ministries: { code: string; short: string; name: string; nameKm: string }[];
   indicators: ReportIndicator[];
   threshold: Threshold;
+  live?: LiveReport;
 }) {
   const [lang, setLang] = useState<"en" | "km">("en");
-  const [ministry, setMinistry] = useState("");
-  const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [ministry, setMinistry] = useState(live?.ministry ?? "");
+  const [answers, setAnswers] = useState<Record<string, Answer>>(live?.answers ?? {});
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [serverError, setServerError] = useState("");
+  const readOnly = Boolean(live?.report && !live.report.editable);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [save, setSave] = useState<Save>("idle");
   const [receipt, setReceipt] = useState("");
@@ -90,14 +107,38 @@ export function CashewReportForm({
   const locked = role === "focal";
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || live) return; // live: the server already chose the ministry
     if (locked) {
       setMinistry(myMinistry); // a focal point reports for their own ministry only
       return;
     }
     const m = new URLSearchParams(window.location.search).get("ministry");
     if (m && ministries.some((x) => x.code === m)) setMinistry(m);
-  }, [ministries, ready, locked, myMinistry]);
+  }, [ministries, ready, locked, myMinistry, live]);
+
+  function go(nextMinistry: string, nextYear: number) {
+    router.push(`?ministry=${nextMinistry}&year=${nextYear}`);
+  }
+
+  function draftPayload(): DraftAnswer[] {
+    return mine.map((i) => ({ id: i.id, value: answers[i.id]?.value ?? "", narrative: answers[i.id]?.narrative ?? "", feedback: answers[i.id]?.feedback ?? "" }));
+  }
+
+  function saveLive() {
+    if (!live) return;
+    setServerError("");
+    setSave("saving");
+    startTransition(async () => {
+      const r = await saveReport(ministry, live.year, draftPayload());
+      if (!r.ok) {
+        setSave("unsaved");
+        setServerError(r.error ?? "Could not save.");
+        return;
+      }
+      setSave("saved");
+      if (!live.report) router.refresh(); // first save created the report
+    });
+  }
 
   const mine = useMemo(() => indicators.filter((i) => i.ministry === ministry), [indicators, ministry]);
   const done = mine.filter((i) => answers[i.id]?.value).length;
@@ -140,6 +181,20 @@ export function CashewReportForm({
       return;
     }
     setSave("sending");
+    if (live) {
+      setServerError("");
+      startTransition(async () => {
+        const r = await submitReport(ministry, live.year, draftPayload());
+        if (!r.ok) {
+          setSave("unsaved");
+          setServerError(r.error ?? "Could not submit.");
+          return;
+        }
+        setReceipt(r.code ?? "submitted");
+        setSave("saved");
+      });
+      return;
+    }
     setTimeout(() => {
       setReceipt(`RY2026-${ministries.find((m) => m.code === ministry)!.short.toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`);
       setSave("saved");
@@ -149,10 +204,14 @@ export function CashewReportForm({
   if (receipt) {
     return (
       <div className="notice notice--success" role="status">
-        <h2 style={{ marginTop: 0 }}>Annual report submitted (simulated)</h2>
-        <p>Receipt <strong style={{ fontSize: "1.25rem" }}>{receipt}</strong> · {done} indicators.</p>
+        <h2 style={{ marginTop: 0 }}>Annual report submitted{live ? "" : " (simulated)"}</h2>
+        <p>{live ? "Reference" : "Receipt"} <strong style={{ fontSize: "1.25rem" }}>{receipt}</strong> · {done} indicators.</p>
         <p>MoC verifies submissions in the two weeks after 31 March. You will be contacted if something needs correcting; reply within 5 working days.</p>
-        <p className="small muted">Nothing was sent to a server. One submission per ministry per year: a second submission would be flagged as a duplicate.</p>
+        <p className="small muted">
+          {live
+            ? "Saved to the database and locked. The automatic checks have run; MoC sees it in the review queue. Corrections create a new revision."
+            : "Nothing was sent to a server. One submission per ministry per year: a second submission would be flagged as a duplicate."}
+        </p>
         <Link className="btn btn--secondary" href="/submissions">View submissions</Link>
       </div>
     );
@@ -165,6 +224,32 @@ export function CashewReportForm({
       <div className="btn-row" style={{ justifyContent: "flex-end", marginBottom: 16 }}>
         <LangToggle lang={lang} setLang={setLang} />
       </div>
+
+      {serverError && (
+        <div className="notice notice--error" role="alert"><p>{serverError}</p></div>
+      )}
+      {live?.report && (
+        <div className={`notice ${readOnly ? "" : "notice--success"}`} role="status">
+          <p>
+            <strong>{live.report.code}</strong>, revision {live.report.revisionNo}: <StatusTag status={live.report.state} />{" "}
+            {live.report.editable
+              ? "Draft saved in the database. Keep editing, then submit."
+              : live.report.state === "Approved" || live.report.state === "Returned"
+                ? "This revision is locked. To change it, start a correction: the values are copied into a new draft revision and this one stays on record."
+                : "Submitted and waiting for MoC review. It can't be changed now."}
+          </p>
+          {(live.report.state === "Approved" || live.report.state === "Returned") && (
+            <p style={{ marginBottom: 0 }}>
+              <button type="button" className="btn btn--secondary" disabled={pending} onClick={() => startTransition(async () => {
+                const r = await openReport(ministry, live.year);
+                if (!r.ok) setServerError(r.error ?? "Could not start a correction.");
+                else router.refresh();
+              })}>Start a correction</button>{" "}
+              <Link href={`/reviews/${live.report.code}`}>See the review</Link>
+            </p>
+          )}
+        </div>
+      )}
 
       {errorList.length > 0 && (
         <div className="notice notice--error" role="alert" tabIndex={-1} ref={summaryRef}>
@@ -179,7 +264,7 @@ export function CashewReportForm({
           <label htmlFor="f-ministry" lang={lang} className={km}>{t.ministry}</label>
           <p className="hint" lang={lang}>{t.ministryHint}</p>
           {errors.ministry && <p className="error-message">{errors.ministry}</p>}
-          <select id="f-ministry" value={ministry} disabled={locked} aria-describedby={locked ? "f-ministry-lock" : undefined} onChange={(e) => { setMinistry(e.target.value); setErrors({}); }}>
+          <select id="f-ministry" value={ministry} disabled={locked} aria-describedby={locked ? "f-ministry-lock" : undefined} onChange={(e) => { if (live) return go(e.target.value, live.year); setMinistry(e.target.value); setErrors({}); }}>
             <option value="">Select…</option>
             {ministries.map((m) => <option key={m.code} value={m.code}>{m.short}: {lang === "km" ? m.nameKm : m.name}</option>)}
           </select>
@@ -187,10 +272,16 @@ export function CashewReportForm({
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
           <label htmlFor="f-year" lang={lang} className={km}>{t.year}</label>
-          <select id="f-year" defaultValue="2026">
-            <option>2026</option>
-            <option>2027</option>
-          </select>
+          {live ? (
+            <select id="f-year" value={live.year} onChange={(e) => go(ministry, Number(e.target.value))}>
+              {live.years.map((y) => <option key={y.year} value={y.year}>{y.year}{y.status === "closed" ? " (closed)" : ""}</option>)}
+            </select>
+          ) : (
+            <select id="f-year" defaultValue="2026">
+              <option>2026</option>
+              <option>2027</option>
+            </select>
+          )}
           <p className="hint" style={{ marginTop: 4 }}>Status preview uses the {threshold.year} thresholds: largely achieved from {threshold.largely}%, fully achieved at {threshold.fully}%.</p>
         </div>
       </div>
@@ -204,7 +295,7 @@ export function CashewReportForm({
           <span className="save-state" role="status" aria-live="polite">
             {save === "unsaved" && <span className="tag tag--orange"><Icon name="edit" />Unsaved changes</span>}
             {save === "saving" && <span className="tag tag--blue"><Icon name="clock" />Saving…</span>}
-            {save === "saved" && <span className="tag tag--green"><Icon name="check" />Saved to server (simulated)</span>}
+            {save === "saved" && <span className="tag tag--green"><Icon name="check" />{live ? "Saved to the database" : "Saved to server (simulated)"}</span>}
             {save === "sending" && <span className="tag tag--blue"><Icon name="send" />Sending…</span>}
             {save === "idle" && <span className="muted">Not started</span>}
           </span>
@@ -216,7 +307,7 @@ export function CashewReportForm({
         const p = koboPercentage(i, a.value);
         const s = statusWith(p, threshold);
         return (
-          <fieldset key={i.id} className="ind-group" id={`f-${i.id}`}>
+          <fieldset key={i.id} className="ind-group" id={`f-${i.id}`} disabled={readOnly}>
             <legend className="visually-hidden">{i.id}</legend>
             <p className="small muted" style={{ marginBottom: 4 }}>{i.id} | Action {i.action}</p>
             <h3 lang={lang} className={km}>{lang === "km" ? i.labelKm : i.label}</h3>
@@ -255,7 +346,11 @@ export function CashewReportForm({
             <div className="field">
               <label htmlFor={`e-${i.id}`} lang={lang} className={km}>{t.evidence} <span className="muted" style={{ fontWeight: 400 }}>({t.optional})</span></label>
               <p className="hint">Official report, signed letter, attendance sheet, contract, dated photo or certified statistics, dated within the reporting year.</p>
-              <input id={`e-${i.id}`} type="file" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx" onChange={(e) => set(i.id, { file: e.target.files?.[0]?.name ?? "" })} />
+              {live ? (
+                <p className="small muted">{a.file ? `On file: ${a.file}. ` : ""}Evidence upload is not connected to the database yet; send files to MoC as before.</p>
+              ) : (
+                <input id={`e-${i.id}`} type="file" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx" onChange={(e) => set(i.id, { file: e.target.files?.[0]?.name ?? "" })} />
+              )}
             </div>
             <div className="field" style={{ marginBottom: 0 }}>
               <label htmlFor={`fb-${i.id}`} lang={lang} className={km}>{t.feedback} <span className="muted" style={{ fontWeight: 400 }}>({t.optional})</span></label>
@@ -265,14 +360,14 @@ export function CashewReportForm({
         );
       })}
 
-      {ministry && (
+      {ministry && !readOnly && (
         <div className="btn-row" style={{ marginTop: 24 }}>
-          <button className="btn" type="submit" disabled={save === "sending"}>Submit annual report</button>
+          <button className="btn" type="submit" disabled={save === "sending" || pending}>Submit annual report</button>
           <button
             className="btn btn--secondary"
             type="button"
-            onClick={() => { setSave("saving"); setTimeout(() => setSave("saved"), 600); }}
-            disabled={save === "saving" || save === "sending"}
+            onClick={() => (live ? saveLive() : (setSave("saving"), setTimeout(() => setSave("saved"), 600)))}
+            disabled={save === "saving" || save === "sending" || pending}
           >
             Save draft
           </button>

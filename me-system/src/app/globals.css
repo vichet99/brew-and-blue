@@ -132,6 +132,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .brand__sub { display: block; font-weight: 400; font-size: 0.8125rem; opacity: 0.9; }
 .site-header__meta { margin-left: auto; display: flex; gap: var(--s3); align-items: center; font-size: 0.9375rem; flex-wrap: wrap; }
 .site-header__meta a { color: var(--white); }
+.link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--link, #1d70b8); text-decoration: underline; cursor: pointer; }
+.site-header__meta .link-button { color: var(--white); }
+.link-button:focus-visible { outline: 3px solid #ffdd00; outline-offset: 2px; }
 .workspace-pill { border: 1px solid var(--blue-tint-50); border-radius: 999px; padding: 2px 10px; font-size: 0.8125rem; }
 
 .proto-banner { background: var(--yellow-tint-80); border-bottom: 1px solid var(--black-tint-80); font-size: 0.9375rem; }
@@ -473,4 +476,5 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .mobile-menu__role { padding: var(--s3) var(--s3) 0; max-width: var(--content); margin: 0 auto; }
 .mobile-menu__role .role-switch { font-weight: 700; }
 .mobile-menu__role select { min-height: 44px; border-color: var(--black); }
-.site-header .mobile-menu .role-switch label { color: var(--text); }
+.site-header .mobile-menu .role-switch label,
+.site-header .mobile-menu .role-switch span { color: var(--text); }

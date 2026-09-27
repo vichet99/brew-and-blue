@@ -71,6 +71,8 @@ select test.eq('viewer sees 108 approved action results', (select count(*) from 
 select test.eq('viewer sees no submissions', (select count(*) from submissions), 0::bigint);
 select test.eq('viewer sees no answers', (select count(*) from answers), 0::bigint);
 select test.eq('viewer sees no audit trail', (select count(*) from audit_events), 0::bigint);
+select test.eq('viewer sees no submission overview rows', (select count(*) from submission_overview), 0::bigint);
+select test.eq('viewer access row', (select string_agg(role::text, ',') from my_access), 'viewer');
 select test.eq('viewer cannot change set-up (0 rows)', test.rows($$update indicators set status = 'retired' where code = 'AI-002'$$), 0::bigint);
 select test.expect_error($$select decide_revision((select id from submission_revisions limit 1), 'approved')$$, 'only reviewers');
 reset role;
@@ -80,6 +82,9 @@ set role authenticated;
 select test.act_as('c');
 select test.eq('focal sees only own submission', (select string_agg(code, ',') from submissions), 'RY2025-MAFF');
 select test.eq('focal sees own 15 answers', (select count(*) from answers), 15::bigint);
+select test.eq('focal overview shows own ministry only', (select string_agg(code || ':' || reported || '/' || assigned, ',') from submission_overview), 'RY2025-MAFF:15/15');
+select test.eq('focal access row', (select role || '@' || scope_ministry_code from my_access), 'focal@maff');
+select test.eq('focal answer view', (select count(*) from revision_answers), 15::bigint);
 select test.eq('focal still sees every approved result', (select count(*) from official_results where year = 2025 and level = 'action'), 108::bigint);
 select test.eq('focal cannot edit approved answers (0 rows)', test.rows($$update answers set value_number = 5$$), 0::bigint);
 select test.expect_error($$select decide_revision((select current_revision_id from submissions), 'approved', null, '["a","b","c","d"]')$$, 'only reviewers');
@@ -136,6 +141,28 @@ select test.eq('return needs a reason and works',
   decide_revision((select current_revision_id from submissions where code = 'RY2025-MAFF'), 'returned',
                   'Please attach the variety release decree', null, '["AI-002"]'), 'returned'::submission_state);
 select test.eq('admin sees the audit trail', (select count(*) >= 5 from audit_events), true);
+select test.eq('admin access rows', (select string_agg(role::text, ',' order by role) from my_access), 'admin,reviewer');
+select test.eq('review history names the reviewer', (select actor_name from review_history where action = 'approved' limit 1), 'Secretariat officer');
+select test.eq('overview marks my own entry', (select entered_by_me from submission_overview where code = 'RY2025-MAFF'), true);
+reset role;
+
+-- ---------------------------------------------------------------- report form entry point
+set role authenticated;
+select test.act_as('c');
+select test.expect_error($$select open_submission('nbc', 2026)$$, 'only the NBC focal point');
+select test.expect_error($$select open_submission('maff', 2024)$$, 'reporting year 2024 is closed');
+select open_submission('maff', 2026);
+select test.eq('focal opens a 2026 draft', (select revision_state || ' r' || revision_no from submission_overview where code = 'RY2026-MAFF'), 'draft r1');
+select test.eq('second call returns the same draft', open_submission('maff', 2026) = (select current_revision_id from submissions where code = 'RY2026-MAFF'), true);
+select test.eq('new draft entered by the focal point', (select entered_by_me from submission_overview where code = 'RY2026-MAFF'), true);
+select open_submission('maff', 2025);
+select test.eq('opening a returned report starts a correction', (select revision_state::text from submission_overview where code = 'RY2025-MAFF'), 'draft');
+select submit_revision((select current_revision_id from submissions where code = 'RY2025-MAFF'));
+select test.expect_error($$select open_submission('maff', 2025)$$, 'waiting for MoC review');
+reset role;
+set role authenticated;
+select test.act_as('b');
+select test.expect_error($$select open_submission('maff', 2026)$$, 'only the MAFF focal point');
 reset role;
 
 -- ---------------------------------------------------------------- insert-only and frozen, even for the owner

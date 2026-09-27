@@ -9,9 +9,10 @@ monitoring and evaluation platform, built from the *ME Platform Blueprint v1*
 > **Prototype with an example workspace:** the demo is filled with the
 > **National Cashew Policy 2022–2027** monitoring system (Ministry of Commerce),
 > built from its M&E workbooks, Kobo form, manual and mid-term review. Records
-> marked *Illustrative* are invented to show the workflow. Actions (saving,
-> submitting, approving) are simulated in the browser and **not** saved to a
-> server. Real persistence, sign-in and access control come in milestone M2.
+> marked *Illustrative* are invented to show the workflow. Signed out, actions
+> are simulated in the browser and not saved. **Signed in** with an account,
+> Submissions, Reviews and the report form use the live Supabase database
+> (see [`supabase/README.md`](supabase/README.md#the-website)).
 
 ## Run it
 
@@ -20,12 +21,12 @@ cd me-system
 npm install
 npm run dev        # http://localhost:3000
 npm test           # spec 6.3 formula examples + checks against the Cashew workbooks
-npm run build      # production build (all 226 pages are static)
+npm run build      # production build (workflow pages render per request, the rest are static)
 ```
 
 Requires Node.js 22+. Stack: Next.js 16 (App Router), React 19, TypeScript, plain CSS tokens.
-No UI framework. The Supabase database is live (schema, access rules and Cashew data; see
-[`supabase/`](supabase/README.md)), but the website doesn't read from it yet.
+No UI framework. Database: Supabase (schema, access rules and Cashew data in [`supabase/`](supabase/README.md)).
+Without the two `NEXT_PUBLIC_SUPABASE_*` settings the site runs as the demo only.
 
 ## How the Cashew example maps onto the platform
 
@@ -157,8 +158,9 @@ me-system/
 
 | Implemented and verified | Simulated in the browser | Not built yet |
 |---|---|---|
-| All screens, responsive at 360 / 768 / 1440 px with no page-level horizontal scroll | Draft saving, submission receipts, file uploads | Website connected to the database, sign-in (M2). The Supabase database itself is live with access rules and workflow |
-| Status, completion and Kobo % rules, tested against the workbook (11 / 27 / 6, 66%) | Review approve / return / reject, form publishing, report drafts | Kobo import connector (R2) |
+| All screens, responsive at 360 / 768 / 1440 px with no page-level horizontal scroll | Signed out: draft saving, receipts, file uploads | Evidence upload, live data on dashboards and catalogue pages |
+| Status, completion and Kobo % rules, tested against the workbook (11 / 27 / 6, 66%) | Signed out: review decisions, form publishing, report drafts | Kobo import connector (R2) |
+| Sign-in, roles from the database, live Submissions / Reviews / report form with the real workflow (browser-tested) | | |
 | Dashboards with hover tooltips, legends and data-table alternatives | CSV export (runs locally on the shown rows) | Offline collection and evaluation register (R3) |
 
 ## Deployment

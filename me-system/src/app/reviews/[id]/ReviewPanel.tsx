@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { decideSubmission, startReview } from "@/app/actions/workflow";
 import { useRole } from "@/components/RoleProvider";
 import { StatusTag } from "@/components/ui";
 import { can, canDecide, canSeeSubmission, getRole } from "@/lib/roles";
@@ -21,6 +23,22 @@ interface Row {
   evidence: string | null;
   feedback: string;
 }
+
+export interface LiveReview {
+  code: string;
+  revisionId: string;
+  revisionNo: number;
+  enteredByMe: boolean;
+  history: { when: string; action: string; reason: string; who: string; revision: number }[];
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  review_started: "Review started",
+  returned: "Returned",
+  approved: "Approved",
+  rejected: "Rejected",
+  comment: "Comment",
+};
 
 interface Sub {
   id: string;
@@ -46,10 +64,26 @@ const checks = [
 const show = (v: number | string | null) =>
   v === null || v === "" ? "—" : typeof v === "string" ? ({ completed: "Completed", in_progress: "In progress", not_started: "Not yet started" } as Record<string, string>)[v] ?? v : v.toLocaleString("en-GB");
 
-export function ReviewPanel({ submission: s, rows, flags, threshold }: { submission: Sub; rows: Row[]; flags: { level: string; text: string }[]; threshold: Threshold }) {
-  const [state, setState] = useState(s.state);
+export function ReviewPanel({
+  submission: s,
+  rows,
+  flags,
+  threshold,
+  live,
+}: {
+  submission: Sub;
+  rows: Row[];
+  flags: { level: string; text: string }[];
+  threshold: Threshold;
+  live?: LiveReview;
+}) {
+  const [demoState, setState] = useState(s.state);
+  const state = live ? s.state : demoState;
   const { role, ministry: myMinistry, ready } = useRole();
-  const [enteredByMe, setEnteredByMe] = useState(false);
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [simulatedSelf, setEnteredByMe] = useState(false);
+  const enteredByMe = live ? live.enteredByMe : simulatedSelf;
   const [mode, setMode] = useState<null | "approve" | "return" | "reject">(null);
   const [reason, setReason] = useState("");
   const [ticked, setTicked] = useState<string[]>([]);
@@ -65,6 +99,18 @@ export function ReviewPanel({ submission: s, rows, flags, threshold }: { submiss
     if ((mode === "return" || mode === "reject") && reason.trim().length < 10) return setError("Write a specific query of at least 10 characters so the ministry knows what to fix.");
     if (mode === "approve" && blocking.length) return setError(`${blocking.length} blocking flag(s) are open. Return the submission instead.`);
     if (mode === "approve" && ticked.length < checks.length) return setError("Complete all four verification checks before approving.");
+    if (live) {
+      const decision = mode === "approve" ? "approved" : mode === "return" ? "returned" : "rejected";
+      startTransition(async () => {
+        const r = await decideSubmission(live.code, live.revisionId, decision, reason, ticked);
+        if (!r.ok) return setError(r.error ?? "The database refused this decision.");
+        setMode(null);
+        setReason("");
+        setTicked([]);
+        router.refresh();
+      });
+      return;
+    }
     const next = mode === "approve" ? "Approved" : mode === "return" ? "Returned" : "Rejected";
     setState(next);
     setLog((l) => [`${new Date().toLocaleString("en-GB")} · ${next}${reason ? ` · “${reason}”` : ""}`, ...l]);
@@ -144,6 +190,21 @@ export function ReviewPanel({ submission: s, rows, flags, threshold }: { submiss
               </tbody>
             </table>
           </div>
+          {live && (
+            <>
+              <h2>Review history</h2>
+              {live.history.length === 0 ? <p className="small muted">No review decisions yet.</p> : (
+                <ul className="small">
+                  {live.history.map((h, k) => (
+                    <li key={k}>
+                      {h.when} · revision {h.revision} · <strong>{ACTION_LABEL[h.action] ?? h.action}</strong>
+                      {h.who ? ` by ${h.who}` : ""}{h.reason ? ` · “${h.reason}”` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
           {log.length > 0 && (
             <>
               <h2>Audit events (this session)</h2>
@@ -154,11 +215,11 @@ export function ReviewPanel({ submission: s, rows, flags, threshold }: { submiss
 
         <aside className="card" aria-labelledby="dec-h">
           <h2 id="dec-h" style={{ marginTop: 0 }}>Decision</h2>
-          <p className="small muted">Viewing as <strong>{getRole(role).name}</strong>.</p>
+          <p className="small muted">{live ? "Your role" : "Viewing as"}: <strong>{getRole(role).name}</strong>.</p>
           {!reviewer ? (
             <div className="notice">
               <p>Only reviewers and the Administrator decide on submissions.</p>
-              {role === "focal" && state === "Returned" && <p>MoC has sent a query. Correct the values in the <Link href={`/collect/cashew-indicator-report?ministry=${s.ministryCode}`}>report form</Link> and resubmit within 5 working days.</p>}
+              {role === "focal" && state === "Returned" && <p>MoC has sent a query. Correct the values in the <Link href={`/collect/cashew-indicator-report?ministry=${s.ministryCode}&year=${s.year}`}>report form</Link> and resubmit within 5 working days.</p>}
               <Link href="/submissions">Back to submissions</Link>
             </div>
           ) : !decidable ? (
@@ -168,10 +229,27 @@ export function ReviewPanel({ submission: s, rows, flags, threshold }: { submiss
             </div>
           ) : (
             <>
-              <label className="choice small" style={{ marginBottom: 8 }}>
-                <input type="checkbox" checked={enteredByMe} onChange={(e) => setEnteredByMe(e.target.checked)} />
-                Simulate: I entered this submission myself
-              </label>
+              {live ? (
+                <>
+                  {live.enteredByMe && (
+                    <div className="notice notice--warning"><p className="small">You entered this revision, so another reviewer must approve it. You can still return it.</p></div>
+                  )}
+                  {state === "Submitted" && (
+                    <p>
+                      <button type="button" className="btn btn--secondary" disabled={pending} onClick={() => startTransition(async () => {
+                        const r = await startReview(live.code, live.revisionId);
+                        if (!r.ok) setError(r.error ?? "Could not start the review.");
+                        else router.refresh();
+                      })}>Mark as in review</button>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <label className="choice small" style={{ marginBottom: 8 }}>
+                  <input type="checkbox" checked={simulatedSelf} onChange={(e) => setEnteredByMe(e.target.checked)} />
+                  Simulate: I entered this submission myself
+                </label>
+              )}
               <fieldset className="field">
                 <legend>Verification checks</legend>
                 {checks.map((c) => (
@@ -197,14 +275,25 @@ export function ReviewPanel({ submission: s, rows, flags, threshold }: { submiss
                   {mode === "approve" && <p className="small">Approving locks this submission and feeds its values into the {s.year} dashboard.</p>}
                   {error && <p className="error-message" role="alert">{error}</p>}
                   <div className="btn-row">
-                    <button type="button" className={`btn ${mode === "reject" ? "btn--warning" : ""}`} onClick={act}>Confirm {mode}</button>
+                    <button type="button" className={`btn ${mode === "reject" ? "btn--warning" : ""}`} onClick={act} disabled={pending}>{pending ? "Saving…" : `Confirm ${mode}`}</button>
                     <button type="button" className="btn btn--secondary" onClick={() => { setMode(null); setError(""); }}>Cancel</button>
                   </div>
                 </>
               )}
             </>
           )}
-          <p className="small muted" style={{ marginTop: 16 }}>Simulated in your browser. Reload to reset.</p>
+          {error && !mode && <p className="error-message" role="alert">{error}</p>}
+          {live && (role === "admin" || (role === "focal" && myMinistry === s.ministryCode)) && ["Approved", "Returned", "Draft"].includes(state) && (
+            <p className="small">
+              <Link href={`/collect/cashew-indicator-report?ministry=${s.ministryCode}&year=${s.year}`}>
+                {state === "Draft" ? "Continue the draft" : "Correct this report"}
+              </Link>{" "}
+              {state !== "Draft" && "(starts a new revision; this one stays on record)"}
+            </p>
+          )}
+          <p className="small muted" style={{ marginTop: 16 }}>
+            {live ? "Decisions are saved to the database and recorded in the audit trail." : "Simulated in your browser. Reload to reset."}
+          </p>
         </aside>
       </div>
     </>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { ResponsiveTables } from "@/components/ResponsiveTables";
-import { PageGate, RoleProvider, RoleSwitcher } from "@/components/RoleProvider";
+import { AccountLink, PageGate, ProtoBanner, RoleProvider, RoleSwitcher } from "@/components/RoleProvider";
 import { MobileNav, SideNav } from "@/components/SideNav";
 import { ministries } from "@/lib/cashew";
 
@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="site-header__meta">
               <span className="workspace-pill">Example: National Cashew Policy 2022–2027</span>
               <RoleSwitcher />
-              <Link href="/signin">Sign out</Link>
+              <AccountLink />
             </div>
             <MobileNav />
           </div>
@@ -57,14 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="proto-banner" role="note">
           <div className="proto-banner__inner">
             <strong>PROTOTYPE</strong>
-            <span className="banner-short">
-              Example data from MoC&apos;s Cashew M&amp;E; actions are simulated. <Link href="/admin#sources">Details</Link>
-            </span>
-            <span className="banner-full">
-            Example workspace built from MoC&apos;s Cashew Policy M&amp;E workbooks (reporting year 2025) and the MTR final draft. Records marked
-            &ldquo;Illustrative&rdquo; are invented for the demo. Actions are simulated in your browser and not saved.{" "}
-            <Link href="/sitemap">Sitemap</Link> · <Link href="/admin#sources">Data sources</Link>.
-            </span>
+            <ProtoBanner />
           </div>
         </div>
         <div className="layout">

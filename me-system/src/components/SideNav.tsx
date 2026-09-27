@@ -5,15 +5,16 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { canOpen } from "@/lib/roles";
 import { primaryNav, secondaryNav } from "@/lib/sitemap";
-import { RoleSwitcher, useRole } from "./RoleProvider";
+import { AccountLink, RoleSwitcher, useRole } from "./RoleProvider";
 
 function isCurrent(pathname: string, match: string[]) {
   return match.some((m) => (m === "/" ? pathname === "/" : pathname === m || pathname.startsWith(m + "/")));
 }
 
 function NavLists({ pathname }: { pathname: string }) {
-  const { role } = useRole();
+  const { role, live } = useRole();
   const visible = primaryNav.filter((item) => canOpen(role, item.href));
+  const help = secondaryNav.filter((item) => !(live && item.href === "/signin"));
   return (
     <>
       <div className="sidenav__group">
@@ -31,7 +32,7 @@ function NavLists({ pathname }: { pathname: string }) {
       <div className="sidenav__group">
         <p className="sidenav__heading">Help</p>
         <ul>
-          {secondaryNav.map((item) => (
+          {help.map((item) => (
             <li key={item.href}>
               <Link href={item.href} aria-current={isCurrent(pathname, item.match) ? "page" : undefined}>
                 {item.label}
@@ -81,6 +82,7 @@ export function MobileNav() {
       <div id="mobile-menu" className="mobile-menu" hidden={!open}>
         <div className="mobile-menu__role">
           <RoleSwitcher id="role-switch-mobile" />
+          <p className="small" style={{ margin: "8px 0 0" }}><AccountLink /></p>
         </div>
         <nav className="sidenav" aria-label="Main (mobile)">
           <NavLists pathname={pathname} />
