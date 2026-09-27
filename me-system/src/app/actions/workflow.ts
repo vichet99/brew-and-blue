@@ -1,5 +1,18 @@
 "use server";
 
+/*
+  How this works (Next.js Server Functions)
+  -----------------------------------------
+  "use server" (above) turns every exported async function in this file into a Server Function: the
+  browser imports and calls it like a normal function, but Next.js sends the call to the server as a POST
+  request and runs it there. That means:
+    - the code and any secrets here never reach the browser;
+    - we can read the user's session cookie (getLive → createClient in src/lib/supabase/server.ts);
+    - every argument comes from the browser, so treat it as untrusted: the database re-checks everything.
+  Pattern used by each function: check who is signed in → call a Postgres function with supabase.rpc()
+  → on error return a readable message → revalidatePath() so pages show fresh data.
+*/
+
 // Server Functions for the reporting workflow. Each one acts as the signed-in
 // user: the database checks the role, the ministry and the workflow rules and
 // returns a readable error when something is not allowed.

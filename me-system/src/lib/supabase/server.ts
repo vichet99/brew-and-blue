@@ -1,3 +1,10 @@
+/*
+  How this works: the Supabase client used on the server. Next.js gives server code the request's cookies
+  through cookies() (async in Next 16). @supabase/ssr reads the session from them (getAll) and may write a
+  refreshed session back (setAll). Server Components can't set cookies, hence the try/catch; the proxy
+  (src/proxy.ts) takes care of refreshing on the next request.
+*/
+
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { SUPABASE_KEY, SUPABASE_URL } from "./config";

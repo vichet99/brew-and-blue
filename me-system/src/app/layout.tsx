@@ -1,3 +1,18 @@
+/*
+  How this works (Next.js root layout)
+  ------------------------------------
+  In the App Router, layout.tsx wraps EVERY page. Whatever a page returns is passed in as `children`
+  and rendered inside <main>. So the header, yellow banner, side menu and footer are written once, here.
+
+  - This is a Server Component (no "use client"): it runs at build time / on the server and sends HTML.
+  - `metadata` sets the <title> and <meta> tags; `template` adds the site name after each page's own title.
+  - Interactive parts (RoleSwitcher, AccountLink, MobileNav, ProtoBanner) are Client Components imported here;
+    Next.js sends their JavaScript to the browser, the rest stays plain HTML.
+  - <RoleProvider> is a React Context provider: every component inside can call useRole() to learn who is
+    signed in (or which demo role is chosen) without passing props through every level.
+  - globals.css is imported once here, so its styles apply to the whole site.
+*/
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";

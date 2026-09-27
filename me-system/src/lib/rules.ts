@@ -1,4 +1,9 @@
 // Pure scoring rules shared by server pages and client forms (no data imports).
+//
+// How this works: "pure" means the functions only use their inputs and return a value (no database, no
+// network, no global state). That makes them easy to test (tests/cashew.test.ts) and safe to run in both
+// the browser (live % while typing) and the server. The database has the same rules in SQL
+// (compute_pct and status_for in supabase/migrations/20260927000200_rules.sql): keep them in step.
 
 export type ActionStatus = "Fully Achieved" | "Largely Achieved" | "Limited Progress";
 export type Method = "count_to_target" | "percent_complete" | "milestone" | "inverse_time";

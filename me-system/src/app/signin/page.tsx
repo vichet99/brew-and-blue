@@ -1,5 +1,15 @@
 "use client";
 
+/*
+  How this works (sign-in)
+  ------------------------
+  Live mode: supabase.auth.signInWithPassword() sends the email and password to Supabase Auth. On success
+  Supabase stores the session in cookies (via @supabase/ssr), so both this browser code and the server
+  (proxy.ts, Server Components) know who is signed in. We then read `my_access` to make sure the person
+  has a role in a workspace; if not, we sign them out again and explain.
+  Demo mode (no Supabase settings): the old simulated sign-in, where any address with password "demo" works.
+*/
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";

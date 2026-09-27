@@ -14,13 +14,24 @@ monitoring and evaluation platform, built from the *ME Platform Blueprint v1*
 > Submissions, Reviews and the report form use the live Supabase database
 > (see [`supabase/README.md`](supabase/README.md#the-website)).
 
+## Start here
+
+| Document | For |
+|---|---|
+| [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md) | Running it on your computer (demo, local database, live database) and deploying |
+| [`docs/LEARNING_GUIDE.md`](docs/LEARNING_GUIDE.md) | How the code works: HTML, CSS, TypeScript, React, Next.js, Node.js, PostgreSQL, Supabase |
+| [`docs/PROJECT_INFO.md`](docs/PROJECT_INFO.md) | Project IDs, URLs, settings, versions |
+| [`CLAUDE.md`](CLAUDE.md) | Guidance for Claude Code: commands, architecture, conventions, gotchas |
+| [`supabase/README.md`](supabase/README.md) | The database: migrations, seed, rules, tests |
+| [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md) | Every table and field |
+
 ## Run it
 
 ```bash
 cd me-system
 npm install
 npm run dev        # http://localhost:3000
-npm test           # spec 6.3 formula examples + checks against the Cashew workbooks
+npm test           # 29 unit tests: formula examples, Cashew workbook checks, roles, access
 npm run build      # production build (workflow pages render per request, the rest are static)
 ```
 

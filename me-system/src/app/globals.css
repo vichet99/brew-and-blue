@@ -4,6 +4,16 @@
   _colours-functional.scss. The GDS Transport typeface is restricted to
   gov.uk services, so a system font stack is used instead.
   Spacing units 4/8/16/24/32 px and 16 px body text follow spec section 10.1.
+
+  How to read this file
+  - :root holds the design tokens (CSS custom properties). Use them with var(--name); change a colour
+    once here and the whole site follows.
+  - Sections are marked with "---------- Name ----------" comments: base elements, header, layout, components
+    (buttons, tags, cards, tables, forms), charts, then responsive rules.
+  - Class names follow a light BEM style: .block, .block__part, .block--variant (e.g. .tag--green).
+  - @media (max-width: 800px) { … } blocks apply only on narrow screens. Phone-specific refinements are
+    kept at the END of the file on purpose: when two rules conflict, the later one wins.
+  - Status colours are always paired with text and an icon (never colour alone) for colour-blind users.
 */
 :root {
   /* Palette */

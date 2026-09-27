@@ -1,5 +1,18 @@
 "use client";
 
+/*
+  How this works (React Context for "who am I")
+  ---------------------------------------------
+  createContext + a Provider component + a useRole() hook is the standard React way to share state with
+  every component on the page.
+  - Live mode: an effect (useEffect) asks Supabase for the signed-in user and reads the `my_access` view,
+    then buildAccount() (src/lib/access.ts) turns the rows into the name, roles and ministry.
+    onAuthStateChange re-runs that when the person signs in or out in this tab.
+  - Demo mode: the chosen demo role is kept in localStorage (browser storage) so it survives reloads.
+  - `ready` stays false until we know; PageGate waits for it so pages don't flash "no access".
+  The role here only changes what the interface shows. The database enforces real access.
+*/
+
 // Who the interface is acting for. Signed in (Supabase configured): the role and
 // ministry come from the database grants. Signed out: the demo's simulated role,
 // stored in this browser only. Either way the database enforces access itself.

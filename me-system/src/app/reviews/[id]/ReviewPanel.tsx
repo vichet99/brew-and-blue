@@ -1,5 +1,16 @@
 "use client";
 
+/*
+  How this works (review decision panel)
+  --------------------------------------
+  A Client Component that shows one submission's values and the Approve / Return / Reject controls.
+  - Demo mode: decisions only change local state (useState) and a session log; reload resets them.
+  - Live mode (`live` prop): decisions call the Server Function decideSubmission(), which calls the Postgres
+    function decide_revision(). The database enforces the real rules (reviewer role, four checks, a reason
+    of 10+ characters, no open blocking flags, no approving your own entry); the checks here only give
+    faster, friendlier messages. After success, router.refresh() reloads the page data from the server.
+*/
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";

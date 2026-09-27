@@ -1,3 +1,12 @@
+/*
+  How this works (server-side data access)
+  ----------------------------------------
+  Only imported by Server Components and Server Functions. createClient() builds a Supabase client that
+  carries the signed-in user's session cookie, so every query below runs AS THAT USER and Postgres
+  row-level security filters the results. supabase.from("view").select("*") is turned into SQL by
+  Supabase's API (PostgREST); .eq("code", x) adds a WHERE clause; .maybeSingle() returns one row or null.
+*/
+
 // Server-side access to the live database for pages that can show real data.
 // Returns null when Supabase is not configured or nobody is signed in, so the
 // page falls back to the demo data.

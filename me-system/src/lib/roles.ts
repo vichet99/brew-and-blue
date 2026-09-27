@@ -3,8 +3,9 @@
 // the Committee (Viewer) sees policy totals and each ministry's detail,
 // approved figures only. Pure module: no data imports, safe in client code.
 //
-// PROTOTYPE: these rules drive what the interface shows. Real enforcement
-// belongs on the server and in the database (milestone M2).
+// These rules only drive what the interface shows (which menu items, which buttons).
+// Real enforcement is in the database: row-level security and the workflow functions in
+// supabase/migrations/ refuse anything a role may not do, whatever the browser sends.
 
 export type RoleId = "admin" | "reviewer" | "focal" | "viewer";
 

@@ -1,5 +1,23 @@
 "use client";
 
+/*
+  How this works (a large interactive form: React state, events, Server Functions)
+  --------------------------------------------------------------------------------
+  "use client" (above) makes this component run in the browser, so it can use state and react to typing.
+
+  - useState keeps the form values (`answers`), validation errors and the save status. Changing state
+    re-renders the component, which is how the "% of 2027 target" updates on every keystroke
+    (koboPercentage from src/lib/rules.ts, the same formula the database uses).
+  - Demo mode (no `live` prop): Save and Submit are simulated with setTimeout; nothing leaves the browser.
+  - Live mode (`live` prop from the server page): Save draft / Submit / Start a correction call the Server
+    Functions saveReport / submitReport / openReport (src/app/actions/workflow.ts). They look like normal
+    async functions but run on the server with the user's session; the database checks the role and rules.
+  - useTransition marks those calls as "pending" so buttons can be disabled while saving.
+  - router.refresh() asks the server page to reload its data (e.g. after the first save creates the report).
+  - Accessibility: every input has a <label>, errors are listed in a summary with links to the fields,
+    and Khmer text is marked lang="km" so screen readers pronounce it correctly.
+*/
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition, type FormEvent } from "react";

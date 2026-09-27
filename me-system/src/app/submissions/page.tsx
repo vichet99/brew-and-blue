@@ -1,3 +1,17 @@
+/*
+  How this works (a dynamic Server Component page)
+  ------------------------------------------------
+  URL: /submissions  (folder name = URL). This file runs on the SERVER for every request because of
+  `export const dynamic = "force-dynamic"` (the content depends on who is signed in).
+
+  1. getLive() reads the Supabase session cookie. null = nobody signed in → show the demo data.
+  2. Signed in → listSubmissions() queries the `submission_overview` view. Row-level security in Postgres
+     returns only the rows this person may see (a focal point gets their own ministry only).
+  3. Rows are mapped to the shape SubmissionTable expects, then passed as props to that Client Component,
+     which handles the filters and CSV export in the browser.
+  The page itself never decides access: the database already filtered the rows.
+*/
+
 import type { Metadata } from "next";
 import { LiveNote } from "@/components/LiveNote";
 import { PageHead } from "@/components/ui";
