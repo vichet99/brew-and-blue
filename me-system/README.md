@@ -24,7 +24,8 @@ npm run build      # production build (all 226 pages are static)
 ```
 
 Requires Node.js 22+. Stack: Next.js 16 (App Router), React 19, TypeScript, plain CSS tokens.
-No UI framework, no database yet.
+No UI framework. The website doesn't use a database yet; the Supabase schema, access rules and seed are ready in
+[`supabase/`](supabase/README.md), tested locally but not yet applied to a Supabase project.
 
 ## How the Cashew example maps onto the platform
 
@@ -137,6 +138,10 @@ Sources: [GOV.UK Brand Guidelines – colour](https://brand.design-system.servic
 ```
 me-system/
 ├── scripts/build_cashew_data.py   builds src/data/cashew.json from the source files
+├── scripts/build_supabase_seed.py builds supabase/seed.sql from cashew.json
+├── scripts/build_data_dictionary.py builds docs/data-dictionary.xlsx and DATA_DICTIONARY.md
+├── docs/                          Level 3 data dictionary
+├── supabase/                      migrations, seed and local role checks (see supabase/README.md)
 ├── src/data/cashew.json           generated example data
 ├── src/lib/cashew.ts              typed access, status and trend rules
 ├── src/lib/rules.ts               pure scoring rules (shared with client forms)
@@ -152,7 +157,7 @@ me-system/
 
 | Implemented and verified | Simulated in the browser | Not built yet |
 |---|---|---|
-| All screens, responsive at 360 / 768 / 1440 px with no page-level horizontal scroll | Draft saving, submission receipts, file uploads | Database, sign-in, access control (M2) |
+| All screens, responsive at 360 / 768 / 1440 px with no page-level horizontal scroll | Draft saving, submission receipts, file uploads | Website connected to the database, sign-in (M2). Schema, access rules and workflow are written and tested in `supabase/` |
 | Status, completion and Kobo % rules, tested against the workbook (11 / 27 / 6, 66%) | Review approve / return / reject, form publishing, report drafts | Kobo import connector (R2) |
 | Dashboards with hover tooltips, legends and data-table alternatives | CSV export (runs locally on the shown rows) | Offline collection and evaluation register (R3) |
 
